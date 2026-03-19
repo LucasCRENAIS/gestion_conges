@@ -10,7 +10,6 @@
   <meta name="apple-mobile-web-app-title" content="Congés">
   <meta name="theme-color" content="#1e1b4b">
   
-  <!-- Nouvelle icône plus premium -->
   <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3652/3652191.png">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3652/3652191.png">
 
@@ -33,7 +32,6 @@
     * { -webkit-user-select: none; user-select: none; box-sizing: border-box; }
     input { -webkit-user-select: auto; user-select: auto; outline: none; }
     .pt-safe { padding-top: calc(15px + var(--sat, 20px)); }
-    /* Padding important pour dégager la zone du bas */
     .pb-extra { padding-bottom: calc(100px + var(--sab, 30px)); }
   </style>
 </head>
@@ -175,7 +173,6 @@
 
               <CalendarWidget leaves={data.calendarLeaves} setLeaves={v => updateField('calendarLeaves', v)} />
               
-              {/* Espace tampon invisible très large pour forcer le scroll au-dessus des barres système */}
               <div className="h-32"></div>
             </div>
           </div>
@@ -223,6 +220,13 @@
       };
       return (
         <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+          <div className="flex justify-between items-center mb-6 px-1">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Calendrier</h3>
+            <div className="bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
+               <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Zone C (Toulouse)</span>
+            </div>
+          </div>
+
           <div className="flex justify-between items-center mb-6 px-2">
              <button onClick={() => setView(new Date(y, m-1, 1))} className="p-2 bg-slate-50 rounded-xl text-slate-400 active:bg-slate-200 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg></button>
              <span className="text-xs font-black uppercase tracking-widest text-slate-800">{months[m]} {y}</span>
