@@ -10,11 +10,11 @@
   <meta name="apple-mobile-web-app-title" content="Congés">
   <meta name="theme-color" content="#1e1b4b">
   
-  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2370/2370264.png">
-  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2370/2370264.png">
+  <!-- Nouvelle icône plus premium -->
+  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3652/3652191.png">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3652/3652191.png">
 
-  <!-- Manifest encodé proprement pour forcer le plein écran (standalone) -->
-  <link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22Suivi%20Cong%C3%A9s%22%2C%22short_name%22%3A%22Cong%C3%A9s%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231e1b4b%22%2C%22theme_color%22%3A%22%231e1b4b%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fcdn-icons-png.flaticon.com%2F512%2F2370%2F2370264.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%20maskable%22%7D%5D%7D">
+  <link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22Suivi%20Cong%C3%A9s%22%2C%22short_name%22%3A%22Cong%C3%A9s%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231e1b4b%22%2C%22theme_color%22%3A%22%231e1b4b%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fcdn-icons-png.flaticon.com%2F512%2F3652%2F3652191.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%20maskable%22%7D%5D%7D">
 
   <title>Gestion Congés</title>
   
@@ -26,14 +26,15 @@
   <style>
     :root { --sat: env(safe-area-inset-top); --sab: env(safe-area-inset-bottom); }
     body { 
-      background-color: #f8fafc; margin: 0; overscroll-behavior-y: none; 
+      background-color: #f8fafc; margin: 0; height: 100vh; overflow: hidden;
       -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
     ::-webkit-scrollbar { display: none; }
     * { -webkit-user-select: none; user-select: none; box-sizing: border-box; }
     input { -webkit-user-select: auto; user-select: auto; outline: none; }
-    .pt-safe { padding-top: calc(10px + var(--sat, 20px)); }
-    .pb-safe { padding-bottom: calc(20px + var(--sab, 20px)); }
+    .pt-safe { padding-top: calc(15px + var(--sat, 20px)); }
+    /* Padding important pour dégager la zone du bas */
+    .pb-extra { padding-bottom: calc(100px + var(--sab, 30px)); }
   </style>
 </head>
 <body>
@@ -88,13 +89,9 @@
     };
 
     const App = () => {
-      // Chargement des données depuis le téléphone
       const [data, setData] = useState(() => {
         const saved = localStorage.getItem('conges-toulouse-data');
-        if (saved) {
-          return JSON.parse(saved);
-        }
-        return {
+        return saved ? JSON.parse(saved) : {
           targetDate: new Date().toISOString().split('T')[0],
           taken: { cp: 0, rtt: 0, seniority: 0, cet: 0 },
           toCet: { cp: 0, rtt: 0 },
@@ -105,7 +102,6 @@
 
       const [syncStatus, setSyncStatus] = useState('synced');
 
-      // Sauvegarde automatique à chaque changement
       useEffect(() => {
         setSyncStatus('saving');
         localStorage.setItem('conges-toulouse-data', JSON.stringify(data));
@@ -135,18 +131,16 @@
       }, [data, totals]);
 
       return (
-        <div className="min-h-screen bg-slate-50 pb-safe">
-          <header className="bg-indigo-950 text-white pt-safe pb-8 px-5 rounded-b-[40px] shadow-2xl sticky top-0 z-10">
+        <div className="h-screen bg-slate-50 flex flex-col overflow-hidden">
+          <header className="bg-indigo-950 text-white pt-safe pb-8 px-5 rounded-b-[40px] shadow-2xl flex-shrink-0 z-10">
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-bold tracking-tight">Congés & CET</h1>
-                <div className={`w-2 h-2 rounded-full transition-colors duration-300 ${syncStatus === 'synced' ? 'bg-emerald-400' : 'bg-amber-400'}`}></div>
+                <div className={`w-2 h-2 rounded-full ${syncStatus === 'synced' ? 'bg-emerald-400' : 'bg-amber-400'}`}></div>
               </div>
               <div className="text-right">
                 <label className="block text-[10px] text-indigo-300 font-bold uppercase mb-1">Projection :</label>
-                <div className="relative">
-                    <input type="date" value={data.targetDate} onChange={(e) => updateField('targetDate', e.target.value)} className="bg-indigo-900 text-white rounded-xl border-none p-2 text-xs font-bold appearance-none" />
-                </div>
+                <input type="date" value={data.targetDate} onChange={(e) => updateField('targetDate', e.target.value)} className="bg-indigo-900 text-white rounded-xl border-none p-2 text-xs font-bold" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -155,30 +149,35 @@
             </div>
           </header>
 
-          <div className="p-4 space-y-4 max-w-md mx-auto">
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
-              <div>
-                <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ancienneté</h3>
-                <div className="text-xl font-black text-slate-800">{calcs.sen.bal.toFixed(1)} <span className="text-xs font-normal text-slate-300">j.</span></div>
+          <div className="flex-1 overflow-y-auto pt-4 px-4 space-y-4 pb-extra">
+            <div className="max-w-md mx-auto space-y-4">
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
+                <div>
+                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ancienneté</h3>
+                  <div className="text-xl font-black text-slate-800">{calcs.sen.bal.toFixed(1)} <span className="text-xs font-normal text-slate-300">j.</span></div>
+                </div>
+                <div className="w-24 bg-slate-50 p-2 rounded-xl">
+                  <label className="text-[7px] font-bold text-slate-400 block mb-0.5 uppercase">Pris (man.)</label>
+                  <input type="number" step="0.5" value={data.taken.seniority} onChange={e => updateNested('taken', 'seniority', parseFloat(e.target.value) || 0)} className="w-full bg-transparent text-xs font-black border-none p-0 focus:outline-none" />
+                </div>
               </div>
-              <div className="w-24 bg-slate-50 p-2 rounded-xl">
-                <label className="text-[7px] font-bold text-slate-400 block mb-0.5 uppercase">Pris (man.)</label>
-                <input type="number" step="0.5" value={data.taken.seniority} onChange={e => updateNested('taken', 'seniority', parseFloat(e.target.value) || 0)} className="w-full bg-transparent text-xs font-black border-none p-0 focus:outline-none" />
-              </div>
-            </div>
 
-            <div className="bg-slate-900 rounded-3xl p-5 shadow-lg text-white">
-              <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Solde CET</h3>
-              <div className="text-3xl font-black text-indigo-400 mb-4">{calcs.cet.bal.toFixed(1)} <span className="text-sm font-normal text-white/50">j.</span></div>
-              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-800">
-                <DarkInput label="Stock initial" val={data.initialCet} setVal={v => updateField('initialCet', v)} />
-                <DarkInput label="Pris (manuel)" val={data.taken.cet} setVal={v => updateNested('taken', 'cet', v)} />
-                <DarkInput label="+ RTT versés" val={data.toCet.rtt} setVal={v => updateNested('toCet', 'rtt', v)} highlight />
-                <DarkInput label="+ CP versés" val={data.toCet.cp} setVal={v => updateNested('toCet', 'cp', v)} highlight />
+              <div className="bg-slate-900 rounded-3xl p-5 shadow-lg text-white">
+                <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Solde CET</h3>
+                <div className="text-3xl font-black text-indigo-400 mb-4">{calcs.cet.bal.toFixed(1)} <span className="text-sm font-normal text-white/50">j.</span></div>
+                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-800">
+                  <DarkInput label="Stock initial" val={data.initialCet} setVal={v => updateField('initialCet', v)} />
+                  <DarkInput label="Pris (manuel)" val={data.taken.cet} setVal={v => updateNested('taken', 'cet', v)} />
+                  <DarkInput label="+ RTT versés" val={data.toCet.rtt} setVal={v => updateNested('toCet', 'rtt', v)} highlight />
+                  <DarkInput label="+ CP versés" val={data.toCet.cp} setVal={v => updateNested('toCet', 'cp', v)} highlight />
+                </div>
               </div>
-            </div>
 
-            <CalendarWidget leaves={data.calendarLeaves} setLeaves={v => updateField('calendarLeaves', v)} />
+              <CalendarWidget leaves={data.calendarLeaves} setLeaves={v => updateField('calendarLeaves', v)} />
+              
+              {/* Espace tampon invisible très large pour forcer le scroll au-dessus des barres système */}
+              <div className="h-32"></div>
+            </div>
           </div>
         </div>
       );
@@ -262,13 +261,9 @@
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
 
-    // Service Worker Minimal pour forcer l'installation de la PWA par Chrome
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        const sw = `
-          self.addEventListener('install', e => self.skipWaiting());
-          self.addEventListener('fetch', e => {});
-        `;
+        const sw = `self.addEventListener('install', e => self.skipWaiting()); self.addEventListener('fetch', e => {});`;
         const blob = new Blob([sw], {type: 'application/javascript'});
         navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
       });
