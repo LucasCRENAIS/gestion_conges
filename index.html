@@ -4,18 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   
-  <!-- Configuration PWA pour installation mobile -->
+  <!-- Configuration PWA pour affichage plein écran -->
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Congés">
+  
+  <!-- Couleur de la barre d'état (iPhone/Android) -->
   <meta name="theme-color" content="#1e1b4b">
+  
   <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2370/2370264.png">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2370/2370264.png">
 
-  <!-- Manifest JSON inline pour GitHub Pages -->
-  <link rel="manifest" href='data:application/json,{"name":"Suivi Congés Toulouse","short_name":"Congés","start_url":"./index.html","display":"standalone","background_color":"#1e1b4b","theme_color":"#1e1b4b","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/2370/2370264.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]}'>
+  <!-- Manifest JSON corrigé pour le mode standalone -->
+  <link rel="manifest" href='data:application/json,{"name":"Suivi Congés Toulouse","short_name":"Congés","start_url":"./index.html","display":"standalone","orientation":"portrait","background_color":"#1e1b4b","theme_color":"#1e1b4b","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/2370/2370264.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]}'>
 
-  <title>Congés Toulouse Zone C</title>
+  <title>Congés Toulouse</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -26,20 +30,27 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
-    body { background-color: #f8fafc; margin: 0; overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    :root {
+      --sat: env(safe-area-inset-top);
+      --sab: env(safe-area-inset-bottom);
+    }
+    body { 
+      background-color: #f8fafc; 
+      margin: 0; 
+      overscroll-behavior-y: none; 
+      -webkit-tap-highlight-color: transparent; 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
     ::-webkit-scrollbar { display: none; }
     * { -webkit-user-select: none; user-select: none; box-sizing: border-box; }
     input { -webkit-user-select: auto; user-select: auto; outline: none; }
-    .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
-    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    
+    /* On utilise les safe-areas pour éviter que l'encoche du téléphone coupe le texte */
+    .pt-safe { padding-top: calc(10px + var(--sat, 20px)); }
+    .pb-safe { padding-bottom: calc(20px + var(--sab, 20px)); }
     
     @keyframes pulse-custom { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.1); } }
     .animate-pulse-fast { animation: pulse-custom 1s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-    
-    /* Optimisation pour le mode "Standalone" (App installée) */
-    @media (display-mode: standalone) {
-      header { padding-top: 50px; }
-    }
   </style>
 </head>
 <body>
@@ -48,7 +59,6 @@
   <script type="text/babel">
     const { useState, useMemo, useEffect, useCallback } = React;
 
-    // Configuration Firebase fournie par l'environnement ou dummy pour le test
     const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{"projectId":"dummy"}');
     if (!firebase.apps.length && firebaseConfig.projectId !== "dummy") {
       firebase.initializeApp(firebaseConfig);
@@ -57,7 +67,6 @@
     const auth = firebase.apps.length ? firebase.auth() : null;
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'tracker-toulouse-v1';
 
-    // Logique de calcul des vacances (Zone C - Toulouse)
     const getSchoolVacations = (year) => {
       const pad = n => String(n).padStart(2, '0');
       const fmt = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
@@ -115,7 +124,6 @@
         calendarLeaves: {}
       });
 
-      // Initialisation Authentification & Firestore
       useEffect(() => {
         if (!auth) { setLoading(false); return; }
         const init = async () => {
@@ -133,44 +141,30 @@
               if (doc.exists) setData(p => ({ ...p, ...doc.data() }));
               setLoading(false);
               setSyncStatus('synced');
-            }, (err) => { 
-              console.error("Firestore Error:", err);
-              setLoading(false); 
-              setSyncStatus('error'); 
-            });
+            }, () => { setLoading(false); setSyncStatus('error'); });
             return () => unsub();
-          } catch (e) { 
-            console.error("Auth Error:", e);
-            setLoading(false); 
-            setSyncStatus('error'); 
-          }
+          } catch (e) { setLoading(false); setSyncStatus('error'); }
         };
         init();
       }, []);
 
-      // Sauvegarde automatique
       const persist = useCallback((n) => {
         if (!user || !db) return;
         setSyncStatus('saving');
         db.doc(`/artifacts/${appId}/users/${user.uid}/settings/main`).set(n, { merge: true })
           .then(() => setSyncStatus('synced'))
-          .catch((err) => {
-            console.error("Save Error:", err);
-            setSyncStatus('error');
-          });
+          .catch(() => setSyncStatus('error'));
       }, [user]);
 
       const updateField = (k, v) => { const n = { ...data, [k]: v }; setData(n); persist(n); };
       const updateNested = (c, f, v) => { const n = { ...data, [c]: { ...data[c], [f]: v } }; setData(n); persist(n); };
 
-      // Calcul des totaux posés dans le calendrier
       const totals = useMemo(() => {
         const t = { cp: 0, rtt: 0, seniority: 0, cet: 0 };
         Object.values(data.calendarLeaves || {}).forEach(l => { if (t[l.type] !== undefined) t[l.type] += l.duration; });
         return t;
       }, [data.calendarLeaves]);
 
-      // Calcul des soldes prévisionnels
       const calcs = useMemo(() => {
         const sel = new Date(data.targetDate);
         const months = Math.max(0, (sel - new Date(sel.getFullYear(), 0, 1)) / (1000 * 60 * 60 * 24 * 30.44));
@@ -187,7 +181,7 @@
 
       return (
         <div className="min-h-screen bg-slate-50 pb-safe">
-          <header className="bg-indigo-950 text-white pt-10 pb-8 px-5 rounded-b-3xl shadow-xl sticky top-0 z-10 border-b border-indigo-900">
+          <header className="bg-indigo-950 text-white pt-safe pb-8 px-5 rounded-b-[40px] shadow-2xl sticky top-0 z-10">
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-bold tracking-tight">Congés & CET</h1>
@@ -195,7 +189,9 @@
               </div>
               <div className="text-right">
                 <label className="block text-[10px] text-indigo-300 font-bold uppercase mb-1">Projection :</label>
-                <input type="date" value={data.targetDate} onChange={(e) => updateField('targetDate', e.target.value)} className="bg-indigo-900 text-white rounded-xl border-none p-2 text-xs font-bold" />
+                <div className="relative">
+                    <input type="date" value={data.targetDate} onChange={(e) => updateField('targetDate', e.target.value)} className="bg-indigo-900 text-white rounded-xl border-none p-2 text-xs font-bold appearance-none" />
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -205,11 +201,10 @@
           </header>
 
           <div className="p-4 space-y-4 max-w-md mx-auto">
-            {/* Widget Ancienneté */}
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
               <div>
                 <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ancienneté</h3>
-                <div className="text-xl font-black text-slate-800">{calcs.sen.bal.toFixed(1)} <span className="text-xs font-normal text-slate-400">j.</span></div>
+                <div className="text-xl font-black text-slate-800">{calcs.sen.bal.toFixed(1)} <span className="text-xs font-normal text-slate-300">j.</span></div>
               </div>
               <div className="w-24 bg-slate-50 p-2 rounded-xl">
                 <label className="text-[7px] font-bold text-slate-400 block mb-0.5 uppercase">Pris (man.)</label>
@@ -217,7 +212,6 @@
               </div>
             </div>
 
-            {/* Widget CET */}
             <div className="bg-slate-900 rounded-3xl p-5 shadow-lg text-white">
               <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Solde CET</h3>
               <div className="text-3xl font-black text-indigo-400 mb-4">{calcs.cet.bal.toFixed(1)} <span className="text-sm font-normal text-white/50">j.</span></div>
@@ -229,7 +223,6 @@
               </div>
             </div>
 
-            {/* Widget Calendrier */}
             <CalendarWidget leaves={data.calendarLeaves} setLeaves={v => updateField('calendarLeaves', v)} />
           </div>
         </div>
@@ -238,11 +231,11 @@
 
     const HeaderStat = ({ label, val, acq, taken, onUpdate }) => (
       <div className="bg-white/5 p-3 rounded-2xl border border-white/10 flex flex-col">
-        <h3 className="text-[10px] font-bold uppercase mb-1 opacity-60">{label}</h3>
-        <div className="text-xl font-black">{val.toFixed(1)} <span className="text-xs font-normal opacity-40">j.</span></div>
-        <p className="text-[8px] mt-1 mb-2 opacity-40 font-bold tracking-tighter uppercase">Acquis : {acq.toFixed(1)}</p>
-        <div className="mt-auto bg-black/20 p-1.5 rounded-xl">
-            <label className="block text-[7px] font-bold text-indigo-300 uppercase mb-0.5">Ajustement</label>
+        <h3 className="text-[10px] font-bold uppercase mb-1 opacity-50">{label}</h3>
+        <div className="text-xl font-black tracking-tight">{val.toFixed(1)} <span className="text-xs font-normal opacity-30">j.</span></div>
+        <p className="text-[8px] mt-1 mb-2 opacity-30 font-bold tracking-tighter uppercase">Acquis : {acq.toFixed(1)}</p>
+        <div className="mt-auto bg-black/30 p-1.5 rounded-xl">
+            <label className="block text-[7px] font-bold text-indigo-400 uppercase mb-0.5">Ajustement</label>
             <input type="number" step="0.5" value={taken} onChange={e => onUpdate(parseFloat(e.target.value) || 0)} className="w-full bg-transparent text-[11px] font-black text-white border-none p-0 focus:outline-none" />
         </div>
       </div>
@@ -250,7 +243,7 @@
 
     const DarkInput = ({ label, val, setVal, highlight }) => (
       <div className="bg-white/5 p-2 rounded-xl">
-        <label className={`text-[8px] font-bold uppercase block mb-0.5 ${highlight ? 'text-indigo-300' : 'text-slate-400'}`}>{label}</label>
+        <label className={`text-[8px] font-bold uppercase block mb-0.5 ${highlight ? 'text-indigo-400' : 'text-slate-500'}`}>{label}</label>
         <input type="number" step="0.5" value={val} onChange={e => setVal(parseFloat(e.target.value) || 0)} className="w-full bg-transparent text-white text-xs font-bold border-none p-0 focus:outline-none" />
       </div>
     );
@@ -276,10 +269,10 @@
       };
       return (
         <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
-          <div className="flex justify-between items-center mb-6">
-             <button onClick={() => setView(new Date(y, m-1, 1))} className="p-2 bg-slate-50 rounded-xl text-slate-400 active:bg-slate-100 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg></button>
+          <div className="flex justify-between items-center mb-6 px-2">
+             <button onClick={() => setView(new Date(y, m-1, 1))} className="p-2 bg-slate-50 rounded-xl text-slate-400 active:bg-slate-200 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg></button>
              <span className="text-xs font-black uppercase tracking-widest text-slate-800">{months[m]} {y}</span>
-             <button onClick={() => setView(new Date(y, m+1, 1))} className="p-2 bg-slate-50 rounded-xl text-slate-400 active:bg-slate-100 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg></button>
+             <button onClick={() => setView(new Date(y, m+1, 1))} className="p-2 bg-slate-50 rounded-xl text-slate-400 active:bg-slate-200 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg></button>
           </div>
           <div className="grid grid-cols-7 gap-1.5 mb-6">
             {['L','M','M','J','V','S','D'].map(d => <div key={d} className="text-center text-[9px] font-black text-slate-200 py-1">{d}</div>)}
@@ -289,19 +282,19 @@
               const l = leaves[id]; const isHoliday = holidays.includes(id); const isVacation = vacations.some(v => id >= v.start && id <= v.end);
               let bgColor = 'bg-slate-50 text-slate-600';
               if (isHoliday) bgColor = 'bg-rose-50 text-rose-400';
-              else if (l) bgColor = {cp:'bg-indigo-600 text-white', rtt:'bg-emerald-500 text-white', seniority:'bg-amber-500 text-white', cet:'bg-slate-900 text-white'}[l.type];
+              else if (l) bgColor = {cp:'bg-indigo-600 text-white shadow-lg shadow-indigo-200', rtt:'bg-emerald-500 text-white shadow-lg shadow-emerald-200', seniority:'bg-amber-500 text-white shadow-lg shadow-amber-200', cet:'bg-slate-900 text-white shadow-lg shadow-slate-300'}[l.type];
               return (
                 <button key={d} onClick={() => toggle(d)} className={`relative flex flex-col items-center justify-center h-11 rounded-2xl text-[11px] font-black transition-all active:scale-90 ${bgColor}`}>
                   {d}{l?.duration === 0.5 && '*'}
                   {isHoliday && <span className="text-[5px] absolute bottom-1 font-bold">FÉRIÉ</span>}
-                  {isVacation && !l && !isHoliday && <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-indigo-200 rounded-full"></div>}
+                  {isVacation && !l && !isHoliday && <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-indigo-300 rounded-full animate-pulse"></div>}
                 </button>
               );
             })}
           </div>
           <div className="space-y-3">
             <div className="grid grid-cols-4 gap-1.5">
-              {['cp', 'rtt', 'seniority', 'cet'].map(t => <button key={t} onClick={() => setType(t)} className={`py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${type === t ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-400'}`}>{t === 'seniority' ? 'ANC.' : t}</button>)}
+              {['cp', 'rtt', 'seniority', 'cet'].map(t => <button key={t} onClick={() => setType(t)} className={`py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${type === t ? 'bg-slate-900 text-white scale-105' : 'bg-slate-50 text-slate-400'}`}>{t === 'seniority' ? 'ANC.' : t}</button>)}
             </div>
             <div className="flex gap-1.5">
               {[1, 0.5].map(v => <button key={v} onClick={() => setDur(v)} className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${dur === v ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-50 text-slate-400'}`}>{v === 1 ? '1 Jour' : '0.5 Jour'}</button>)}
@@ -315,7 +308,6 @@
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
 
-    // Service Worker Minimal pour la PWA
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         const swCode = `
