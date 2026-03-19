@@ -4,53 +4,36 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   
-  <!-- Configuration PWA pour affichage plein écran -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Congés">
-  
-  <!-- Couleur de la barre d'état (iPhone/Android) -->
   <meta name="theme-color" content="#1e1b4b">
   
   <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2370/2370264.png">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2370/2370264.png">
 
-  <!-- Manifest JSON corrigé pour le mode standalone -->
-  <link rel="manifest" href='data:application/json,{"name":"Suivi Congés Toulouse","short_name":"Congés","start_url":"./index.html","display":"standalone","orientation":"portrait","background_color":"#1e1b4b","theme_color":"#1e1b4b","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/2370/2370264.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]}'>
+  <!-- Manifest encodé proprement pour forcer le plein écran (standalone) -->
+  <link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22Suivi%20Cong%C3%A9s%22%2C%22short_name%22%3A%22Cong%C3%A9s%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231e1b4b%22%2C%22theme_color%22%3A%22%231e1b4b%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fcdn-icons-png.flaticon.com%2F512%2F2370%2F2370264.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%20maskable%22%7D%5D%7D">
 
-  <title>Congés Toulouse</title>
+  <title>Gestion Congés</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
-    :root {
-      --sat: env(safe-area-inset-top);
-      --sab: env(safe-area-inset-bottom);
-    }
+    :root { --sat: env(safe-area-inset-top); --sab: env(safe-area-inset-bottom); }
     body { 
-      background-color: #f8fafc; 
-      margin: 0; 
-      overscroll-behavior-y: none; 
-      -webkit-tap-highlight-color: transparent; 
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f8fafc; margin: 0; overscroll-behavior-y: none; 
+      -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
     ::-webkit-scrollbar { display: none; }
     * { -webkit-user-select: none; user-select: none; box-sizing: border-box; }
     input { -webkit-user-select: auto; user-select: auto; outline: none; }
-    
-    /* On utilise les safe-areas pour éviter que l'encoche du téléphone coupe le texte */
     .pt-safe { padding-top: calc(10px + var(--sat, 20px)); }
     .pb-safe { padding-bottom: calc(20px + var(--sab, 20px)); }
-    
-    @keyframes pulse-custom { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.1); } }
-    .animate-pulse-fast { animation: pulse-custom 1s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
   </style>
 </head>
 <body>
@@ -58,14 +41,6 @@
 
   <script type="text/babel">
     const { useState, useMemo, useEffect, useCallback } = React;
-
-    const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{"projectId":"dummy"}');
-    if (!firebase.apps.length && firebaseConfig.projectId !== "dummy") {
-      firebase.initializeApp(firebaseConfig);
-    }
-    const db = firebase.apps.length ? firebase.firestore() : null;
-    const auth = firebase.apps.length ? firebase.auth() : null;
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'tracker-toulouse-v1';
 
     const getSchoolVacations = (year) => {
       const pad = n => String(n).padStart(2, '0');
@@ -113,51 +88,33 @@
     };
 
     const App = () => {
-      const [user, setUser] = useState(null);
-      const [loading, setLoading] = useState(true);
-      const [syncStatus, setSyncStatus] = useState('synced');
-      const [data, setData] = useState({
-        targetDate: new Date().toISOString().split('T')[0],
-        taken: { cp: 0, rtt: 0, seniority: 0, cet: 0 },
-        toCet: { cp: 0, rtt: 0 },
-        initialCet: 0,
-        calendarLeaves: {}
+      // Chargement des données depuis le téléphone
+      const [data, setData] = useState(() => {
+        const saved = localStorage.getItem('conges-toulouse-data');
+        if (saved) {
+          return JSON.parse(saved);
+        }
+        return {
+          targetDate: new Date().toISOString().split('T')[0],
+          taken: { cp: 0, rtt: 0, seniority: 0, cet: 0 },
+          toCet: { cp: 0, rtt: 0 },
+          initialCet: 0,
+          calendarLeaves: {}
+        };
       });
 
+      const [syncStatus, setSyncStatus] = useState('synced');
+
+      // Sauvegarde automatique à chaque changement
       useEffect(() => {
-        if (!auth) { setLoading(false); return; }
-        const init = async () => {
-          try {
-            let currentUser;
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-              const res = await auth.signInWithCustomToken(__initial_auth_token);
-              currentUser = res.user;
-            } else {
-              const res = await auth.signInAnonymously();
-              currentUser = res.user;
-            }
-            setUser(currentUser);
-            const unsub = db.doc(`/artifacts/${appId}/users/${currentUser.uid}/settings/main`).onSnapshot((doc) => {
-              if (doc.exists) setData(p => ({ ...p, ...doc.data() }));
-              setLoading(false);
-              setSyncStatus('synced');
-            }, () => { setLoading(false); setSyncStatus('error'); });
-            return () => unsub();
-          } catch (e) { setLoading(false); setSyncStatus('error'); }
-        };
-        init();
-      }, []);
-
-      const persist = useCallback((n) => {
-        if (!user || !db) return;
         setSyncStatus('saving');
-        db.doc(`/artifacts/${appId}/users/${user.uid}/settings/main`).set(n, { merge: true })
-          .then(() => setSyncStatus('synced'))
-          .catch(() => setSyncStatus('error'));
-      }, [user]);
+        localStorage.setItem('conges-toulouse-data', JSON.stringify(data));
+        const timeout = setTimeout(() => setSyncStatus('synced'), 300);
+        return () => clearTimeout(timeout);
+      }, [data]);
 
-      const updateField = (k, v) => { const n = { ...data, [k]: v }; setData(n); persist(n); };
-      const updateNested = (c, f, v) => { const n = { ...data, [c]: { ...data[c], [f]: v } }; setData(n); persist(n); };
+      const updateField = (k, v) => setData(prev => ({ ...prev, [k]: v }));
+      const updateNested = (c, f, v) => setData(prev => ({ ...prev, [c]: { ...prev[c], [f]: v } }));
 
       const totals = useMemo(() => {
         const t = { cp: 0, rtt: 0, seniority: 0, cet: 0 };
@@ -177,15 +134,13 @@
         };
       }, [data, totals]);
 
-      if (loading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>;
-
       return (
         <div className="min-h-screen bg-slate-50 pb-safe">
           <header className="bg-indigo-950 text-white pt-safe pb-8 px-5 rounded-b-[40px] shadow-2xl sticky top-0 z-10">
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-bold tracking-tight">Congés & CET</h1>
-                <div className={`w-2.5 h-2.5 rounded-full transition-colors duration-500 ${syncStatus === 'synced' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : syncStatus === 'saving' ? 'bg-amber-400 animate-pulse-fast' : 'bg-rose-500'}`}></div>
+                <div className={`w-2 h-2 rounded-full transition-colors duration-300 ${syncStatus === 'synced' ? 'bg-emerald-400' : 'bg-amber-400'}`}></div>
               </div>
               <div className="text-right">
                 <label className="block text-[10px] text-indigo-300 font-bold uppercase mb-1">Projection :</label>
@@ -287,7 +242,7 @@
                 <button key={d} onClick={() => toggle(d)} className={`relative flex flex-col items-center justify-center h-11 rounded-2xl text-[11px] font-black transition-all active:scale-90 ${bgColor}`}>
                   {d}{l?.duration === 0.5 && '*'}
                   {isHoliday && <span className="text-[5px] absolute bottom-1 font-bold">FÉRIÉ</span>}
-                  {isVacation && !l && !isHoliday && <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-indigo-300 rounded-full animate-pulse"></div>}
+                  {isVacation && !l && !isHoliday && <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-indigo-300 rounded-full"></div>}
                 </button>
               );
             })}
@@ -299,7 +254,6 @@
             <div className="flex gap-1.5">
               {[1, 0.5].map(v => <button key={v} onClick={() => setDur(v)} className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${dur === v ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-50 text-slate-400'}`}>{v === 1 ? '1 Jour' : '0.5 Jour'}</button>)}
             </div>
-            <div className="flex items-center gap-2 pt-1 text-[9px] text-slate-300 font-bold uppercase italic"><div className="w-1.5 h-1.5 bg-indigo-200 rounded-full"></div> Toulouse (Zone C)</div>
           </div>
         </div>
       );
@@ -308,13 +262,14 @@
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
 
+    // Service Worker Minimal pour forcer l'installation de la PWA par Chrome
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        const swCode = `
+        const sw = `
           self.addEventListener('install', e => self.skipWaiting());
-          self.addEventListener('fetch', e => e.respondWith(fetch(e.request)));
+          self.addEventListener('fetch', e => {});
         `;
-        const blob = new Blob([swCode], {type: 'text/javascript'});
+        const blob = new Blob([sw], {type: 'application/javascript'});
         navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
       });
     }
