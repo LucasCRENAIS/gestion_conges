@@ -4,19 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   
-  <!-- Configuration PWA / Plein Écran -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Congés">
   <meta name="theme-color" content="#1e1b4b">
   
-  <!-- Icônes -->
   <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2370/2370264.png">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2370/2370264.png">
 
-  <!-- Manifest pour l'installation -->
-  <link rel="manifest" href='data:application/json,{"name":"Suivi Congés Toulouse","short_name":"Congés","start_url":"./index.html","display":"standalone","orientation":"portrait","background_color":"#1e1b4b","theme_color":"#1e1b4b","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/2370/2370264.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]}'>
+  <!-- Manifest ID pour forcer la reconnaissance PWA -->
+  <link id="manifest-link" rel="manifest">
 
   <title>Gestion Congés</title>
   
@@ -47,7 +45,6 @@
   <script type="text/babel">
     const { useState, useMemo, useEffect } = React;
 
-    // Dates ajustées (Fin de zone au 8 mars 2026)
     const getSchoolVacations = (year) => {
       const allVacations = {
         2025: [
@@ -247,7 +244,6 @@
         const id = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         if (holidays.includes(id)) return;
         
-        // Vibration haptique organique (type "clic" discret)
         if(navigator.vibrate) navigator.vibrate(10);
         
         const next = { ...leaves };
@@ -310,19 +306,43 @@
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
 
-    // Service Worker obligatoire pour l'installabilité (PWA)
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        const sw = `
-          self.addEventListener('install', e => self.skipWaiting());
-          self.addEventListener('fetch', e => {
-            e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+    // --- LOGIQUE PWA AVANCÉE POUR L'INSTALLABILITÉ ---
+    window.addEventListener('load', () => {
+      // 1. Génération du Manifest via Blob pour une URL "réelle"
+      const manifest = {
+        name: "Suivi Congés Toulouse",
+        short_name: "Congés",
+        description: "Suivi des congés Zone C Toulouse",
+        start_url: window.location.href,
+        display: "standalone",
+        background_color: "#1e1b4b",
+        theme_color: "#1e1b4b",
+        icons: [
+          {
+            src: "https://cdn-icons-png.flaticon.com/512/2370/2370264.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any maskable"
+          }
+        ]
+      };
+      const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+      document.getElementById('manifest-link').href = URL.createObjectURL(manifestBlob);
+
+      // 2. Enregistrement du Service Worker via Blob (Requis pour Chrome Android)
+      if ('serviceWorker' in navigator) {
+        const swContent = `
+          self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
+          self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+          self.addEventListener('fetch', event => {
+            event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
           });
         `;
-        const blob = new Blob([sw], {type: 'application/javascript'});
-        navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
-      });
-    }
+        const swBlob = new Blob([swContent], {type: 'application/javascript'});
+        const swUrl = URL.createObjectURL(swBlob);
+        navigator.serviceWorker.register(swUrl).catch(err => console.error('PWA Fail:', err));
+      }
+    });
   </script>
 </body>
 </html>
