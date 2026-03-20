@@ -12,8 +12,6 @@
   
   <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3652/3652191.png">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3652/3652191.png">
-
-  <!-- Manifest ID pour forcer la reconnaissance PWA -->
   <link id="manifest-link" rel="manifest">
 
   <title>Gestion Congés</title>
@@ -43,36 +41,7 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useMemo, useEffect } = React;
-
-    const getSchoolVacations = (year) => {
-      const allVacations = {
-        2025: [
-          { start: "2025-02-15", end: "2025-03-02" },
-          { start: "2025-04-12", end: "2025-04-27" },
-          { start: "2025-07-05", end: "2025-08-31" },
-          { start: "2025-10-18", end: "2025-11-02" },
-          { start: "2025-12-20", end: "2025-12-31" }
-        ],
-        2026: [
-          { start: "2026-01-01", end: "2026-01-04" },
-          { start: "2026-02-21", end: "2026-03-08" },
-          { start: "2026-04-18", end: "2026-05-03" }, 
-          { start: "2026-07-04", end: "2026-08-31" },
-          { start: "2026-10-24", end: "2026-11-08" },
-          { start: "2026-12-19", end: "2026-12-31" }
-        ],
-        2027: [
-          { start: "2027-01-01", end: "2027-01-03" },
-          { start: "2027-02-20", end: "2027-03-07" },
-          { start: "2027-04-17", end: "2027-05-02" },
-          { start: "2027-07-03", end: "2027-08-31" },
-          { start: "2027-10-23", end: "2027-11-07" },
-          { start: "2027-12-18", end: "2027-12-31" }
-        ]
-      };
-      return allVacations[year] || [];
-    };
+    const { useState, useMemo, useEffect, useCallback } = React;
 
     const getHolidays = (year) => {
       const pad = n => String(n).padStart(2, '0');
@@ -93,6 +62,9 @@
     };
 
     const App = () => {
+      const [viewDate, setViewDate] = useState(new Date());
+      const [syncStatus, setSyncStatus] = useState('synced');
+      
       const [data, setData] = useState(() => {
         const saved = localStorage.getItem('conges-toulouse-data');
         if (saved) return JSON.parse(saved);
@@ -101,11 +73,66 @@
           taken: { cp: 0, rtt: 0, seniority: 0, cet: 0 },
           toCet: { cp: 0, rtt: 0 },
           initialCet: 0,
-          calendarLeaves: {}
+          calendarLeaves: {},
+          vacations: [],
+          lastAnnualUpdate: null
         };
       });
 
-      const [syncStatus, setSyncStatus] = useState('synced');
+      // --- LOGIQUE DE SYNCHRONISATION API ---
+      const fetchVacations = useCallback(async () => {
+        setSyncStatus('saving');
+        try {
+          // On filtre sur la Zone C et on demande les données récentes/futures pour optimiser
+          const currentYear = new Date().getFullYear();
+          const url = `https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records?where=zones%3D%22Zone%20C%22%20AND%20start_date%20%3E%20%22${currentYear - 1}-01-01%22&order_by=start_date%20DESC&limit=100`;
+          
+          const response = await fetch(url);
+          const result = await response.json();
+          
+          if (result.results) {
+            const formatted = result.results.map(r => {
+              const rawStart = r.start_date.split('T')[0];
+              const rawEnd = r.end_date.split('T')[0];
+              
+              const sDate = new Date(rawStart);
+              sDate.setDate(sDate.getDate() + 1);
+              const pad = n => String(n).padStart(2, '0');
+              const fixedStart = `${sDate.getFullYear()}-${pad(sDate.getMonth() + 1)}-${pad(sDate.getDate())}`;
+
+              return { start: fixedStart, end: rawEnd };
+            });
+
+            const today = new Date();
+            setData(prev => ({
+              ...prev,
+              vacations: formatted,
+              lastAnnualUpdate: today.getMonth() >= 6 ? String(today.getFullYear()) : prev.lastAnnualUpdate
+            }));
+          }
+        } catch (e) {
+          console.error("Erreur synchro API:", e);
+        } finally {
+          setSyncStatus('synced');
+        }
+      }, []);
+
+      // Surveillance : changement d'année ou passage au 1er juillet
+      useEffect(() => {
+        const currentYearInView = viewDate.getFullYear();
+        const today = new Date();
+        const isAfterJuly = today.getMonth() >= 6;
+        
+        // On vérifie si l'année affichée est déjà couverte par nos données locales
+        const hasDataForYear = data.vacations?.some(v => v.start.startsWith(String(currentYearInView)));
+        
+        // On vérifie si la mise à jour annuelle (pour l'année N+1) a été faite
+        const needsAnnualUpdate = isAfterJuly && data.lastAnnualUpdate !== String(today.getFullYear());
+
+        if (!hasDataForYear || needsAnnualUpdate) {
+          fetchVacations();
+        }
+      }, [viewDate.getFullYear(), data.lastAnnualUpdate, fetchVacations]);
 
       useEffect(() => {
         setSyncStatus('saving');
@@ -202,7 +229,14 @@
               </div>
             </div>
 
-            <CalendarWidget leaves={data.calendarLeaves} setLeaves={v => updateField('calendarLeaves', v)} onExport={exportToCalendar} />
+            <CalendarWidget 
+              view={viewDate} 
+              setView={setViewDate} 
+              leaves={data.calendarLeaves} 
+              setLeaves={v => updateField('calendarLeaves', v)} 
+              vacations={data.vacations || []}
+              onExport={exportToCalendar} 
+            />
           </div>
         </div>
       );
@@ -227,8 +261,7 @@
       </div>
     );
 
-    const CalendarWidget = ({ leaves, setLeaves, onExport }) => {
-      const [view, setView] = useState(new Date());
+    const CalendarWidget = ({ view, setView, leaves, setLeaves, vacations, onExport }) => {
       const [type, setType] = useState('cp');
       const [dur, setDur] = useState(1);
       const y = view.getFullYear(), m = view.getMonth();
@@ -236,7 +269,6 @@
       const start = (new Date(y, m, 1).getDay() + 6) % 7;
       const months = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
       const holidays = useMemo(() => getHolidays(y), [y]);
-      const vacations = useMemo(() => getSchoolVacations(y), [y]);
       
       const toggle = (d) => {
         const dayOfWeek = new Date(y, m, d).getDay();
@@ -306,42 +338,19 @@
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
 
-    // --- LOGIQUE PWA AVANCÉE POUR L'INSTALLABILITÉ ---
     window.addEventListener('load', () => {
-      // 1. Génération du Manifest via Blob pour une URL "réelle"
       const manifest = {
         name: "Gestion Congés",
         short_name: "Congés",
-        description: "Suivi des congés Perso",
+        description: "Suivi des congés perso",
         start_url: window.location.href,
         display: "standalone",
         background_color: "#1e1b4b",
         theme_color: "#1e1b4b",
-        icons: [
-          {
-            src: "https://cdn-icons-png.flaticon.com/512/3652/3652191.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any maskable"
-          }
-        ]
+        icons: [{ src: "https://cdn-icons-png.flaticon.com/512/3652/3652191.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }]
       };
       const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
       document.getElementById('manifest-link').href = URL.createObjectURL(manifestBlob);
-
-      // 2. Enregistrement du Service Worker via Blob (Requis pour Chrome Android)
-      if ('serviceWorker' in navigator) {
-        const swContent = `
-          self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
-          self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
-          self.addEventListener('fetch', event => {
-            event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
-          });
-        `;
-        const swBlob = new Blob([swContent], {type: 'application/javascript'});
-        const swUrl = URL.createObjectURL(swBlob);
-        navigator.serviceWorker.register(swUrl).catch(err => console.error('PWA Fail:', err));
-      }
     });
   </script>
 </body>
