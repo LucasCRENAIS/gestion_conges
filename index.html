@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   
-  <!-- Configuration Plein Écran pour Mobile -->
+  <!-- Configuration PWA / Plein Écran -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -28,19 +28,12 @@
   <style>
     :root { --sat: env(safe-area-inset-top); --sab: env(safe-area-inset-bottom); }
     body { 
-      background-color: #f8fafc; margin: 0; 
-      overscroll-behavior-y: none; /* Empêche le pull-to-refresh */
-      -webkit-tap-highlight-color: transparent; 
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      height: 100vh;
-      width: 100vw;
-      overflow-x: hidden;
+      background-color: #f8fafc; margin: 0; overscroll-behavior-y: none; 
+      -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
     ::-webkit-scrollbar { display: none; }
     * { -webkit-user-select: none; user-select: none; box-sizing: border-box; }
     input { -webkit-user-select: auto; user-select: auto; outline: none; }
-    
-    /* Adaptabilité encoche (Notch) */
     .pt-safe { padding-top: calc(10px + var(--sat, 20px)); }
     .pb-safe { padding-bottom: calc(20px + var(--sab, 20px)); }
     
@@ -52,7 +45,7 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useMemo, useEffect, useCallback } = React;
+    const { useState, useMemo, useEffect } = React;
 
     // Dates ajustées (Fin de zone au 8 mars 2026)
     const getSchoolVacations = (year) => {
@@ -254,7 +247,7 @@
         const id = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         if (holidays.includes(id)) return;
         
-        // Vibration haptique organique (clic léger)
+        // Vibration haptique organique (type "clic" discret)
         if(navigator.vibrate) navigator.vibrate(10);
         
         const next = { ...leaves };
@@ -317,7 +310,7 @@
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
 
-    // Service Worker pour la mise en cache et l'installation PWA
+    // Service Worker obligatoire pour l'installabilité (PWA)
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         const sw = `
