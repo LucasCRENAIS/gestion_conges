@@ -79,11 +79,9 @@
         };
       });
 
-      // --- LOGIQUE DE SYNCHRONISATION API ---
       const fetchVacations = useCallback(async () => {
         setSyncStatus('saving');
         try {
-          // On filtre sur la Zone C et on demande les données récentes/futures pour optimiser
           const currentYear = new Date().getFullYear();
           const url = `https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records?where=zones%3D%22Zone%20C%22%20AND%20start_date%20%3E%20%22${currentYear - 1}-01-01%22&order_by=start_date%20DESC&limit=100`;
           
@@ -94,12 +92,10 @@
             const formatted = result.results.map(r => {
               const rawStart = r.start_date.split('T')[0];
               const rawEnd = r.end_date.split('T')[0];
-              
               const sDate = new Date(rawStart);
               sDate.setDate(sDate.getDate() + 1);
               const pad = n => String(n).padStart(2, '0');
               const fixedStart = `${sDate.getFullYear()}-${pad(sDate.getMonth() + 1)}-${pad(sDate.getDate())}`;
-
               return { start: fixedStart, end: rawEnd };
             });
 
@@ -117,16 +113,11 @@
         }
       }, []);
 
-      // Surveillance : changement d'année ou passage au 1er juillet
       useEffect(() => {
         const currentYearInView = viewDate.getFullYear();
         const today = new Date();
         const isAfterJuly = today.getMonth() >= 6;
-        
-        // On vérifie si l'année affichée est déjà couverte par nos données locales
         const hasDataForYear = data.vacations?.some(v => v.start.startsWith(String(currentYearInView)));
-        
-        // On vérifie si la mise à jour annuelle (pour l'année N+1) a été faite
         const needsAnnualUpdate = isAfterJuly && data.lastAnnualUpdate !== String(today.getFullYear());
 
         if (!hasDataForYear || needsAnnualUpdate) {
@@ -270,13 +261,16 @@
       const months = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
       const holidays = useMemo(() => getHolidays(y), [y]);
       
+      const today = new Date();
+      const todayId = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
       const toggle = (d) => {
         const dayOfWeek = new Date(y, m, d).getDay();
         if (dayOfWeek === 0 || dayOfWeek === 6) return;
         const id = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         if (holidays.includes(id)) return;
         
-        if(navigator.vibrate) navigator.vibrate(5);
+        if(navigator.vibrate) navigator.vibrate(10);
         
         const next = { ...leaves };
         if (next[id] && next[id].type === type) delete next[id];
@@ -299,14 +293,17 @@
               const l = leaves[id]; 
               const isHoliday = holidays.includes(id); 
               const isVacation = vacations.some(v => id >= v.start && id <= v.end);
+              const isToday = id === todayId;
               const dayOfWeek = new Date(y, m, d).getDay();
               const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+              
               let bgColor = 'bg-slate-50 text-slate-600';
               if (isWeekend) bgColor = 'bg-slate-50 opacity-40 text-slate-400 cursor-not-allowed'; 
               else if (isHoliday) bgColor = 'bg-rose-50 text-rose-400';
               else if (l) bgColor = {cp:'bg-indigo-600 text-white shadow-lg shadow-indigo-200', rtt:'bg-emerald-500 text-white shadow-lg shadow-emerald-200', seniority:'bg-amber-500 text-white shadow-lg shadow-amber-200', cet:'bg-slate-900 text-white shadow-lg shadow-slate-300'}[l.type];
+              
               return (
-                <button key={d} onClick={() => toggle(d)} className={`relative flex flex-col items-center justify-center h-11 rounded-2xl text-[11px] font-black transition-all active:scale-90 ${bgColor}`}>
+                <button key={d} onClick={() => toggle(d)} className={`relative flex flex-col items-center justify-center h-11 rounded-2xl text-[11px] font-black transition-all active:scale-90 ${bgColor} ${isToday && !l ? 'border-2 border-indigo-200' : ''}`}>
                   {d}{l?.duration === 0.5 && '*'}
                   {isHoliday && <span className="text-[5px] absolute bottom-1 font-bold">FÉRIÉ</span>}
                   {isVacation && !l && !isHoliday && <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-indigo-300 rounded-full"></div>}
