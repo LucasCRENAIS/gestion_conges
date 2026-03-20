@@ -244,7 +244,7 @@
         const id = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         if (holidays.includes(id)) return;
         
-        if(navigator.vibrate) navigator.vibrate(7);
+        if(navigator.vibrate) navigator.vibrate(5);
         
         const next = { ...leaves };
         if (next[id] && next[id].type === type) delete next[id];
@@ -310,16 +310,16 @@
     window.addEventListener('load', () => {
       // 1. Génération du Manifest via Blob pour une URL "réelle"
       const manifest = {
-        name: "Suivi Congés Toulouse",
+        name: "Gestion Congés",
         short_name: "Congés",
-        description: "Suivi des congés Zone C Toulouse",
+        description: "Suivi des congés Perso",
         start_url: window.location.href,
         display: "standalone",
         background_color: "#1e1b4b",
         theme_color: "#1e1b4b",
         icons: [
           {
-            src: "https://cdn-icons-png.flaticon.com/512/2370/2370264.png",
+            src: "https://chatgpt.com/s/m_69bd113cb9248191b34532097fab86a5",
             sizes: "512x512",
             type: "image/png",
             purpose: "any maskable"
