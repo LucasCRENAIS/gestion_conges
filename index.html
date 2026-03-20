@@ -304,7 +304,12 @@
     );
 
     const SettingsPage = ({ settings, updateSetting }) => {
-      const months = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+      const zoneDescriptions = {
+        'Zone A': 'Besançon, Bordeaux, Clermont-Ferrand, Dijon, Grenoble, Limoges, Lyon, Poitiers.',
+        'Zone B': 'Aix-Marseille, Amiens, Lille, Nancy-Metz, Nantes, Nice, Normandie, Orléans-Tours, Reims, Rennes, Strasbourg.',
+        'Zone C': 'Créteil, Montpellier, Paris, Toulouse, Versailles.'
+      };
+
       return (
         <div className="space-y-6 py-2 animate-in fade-in slide-in-from-bottom-4 duration-300">
           <section>
@@ -320,37 +325,27 @@
               </div>
             </div>
           </section>
-          <section>
-            <h2 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-4 px-2">Gestion Péremption</h2>
-            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-5 transition-colors">
-              <div className="flex justify-between items-center">
-                <div className="flex-1 mr-4">
-                  <span className="block text-[11px] font-black text-slate-700 dark:text-slate-200">Date limite annuelle</span>
-                </div>
-                <div className="flex gap-2">
-                  <select value={settings.expiryDay} onChange={e => updateSetting('expiryDay', parseInt(e.target.value))} className="bg-slate-50 dark:bg-slate-700 p-2 rounded-xl text-xs font-bold dark:text-white border-none">
-                    {[...Array(31)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
-                  </select>
-                  <select value={settings.expiryMonth} onChange={e => updateSetting('expiryMonth', parseInt(e.target.value))} className="bg-slate-50 dark:bg-slate-700 p-2 rounded-xl text-xs font-bold dark:text-white border-none">
-                    {months.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-          </section>
+
           <section>
             <h2 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-4 px-2">Scolarité</h2>
             <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-4 transition-colors">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-3">Zone</label>
-                <div className="grid grid-cols-3 gap-2">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-3">Zone sélectionnée</label>
+                <div className="grid grid-cols-3 gap-2 mb-4">
                   {['Zone A', 'Zone B', 'Zone C'].map(z => (
                     <button key={z} onClick={() => updateSetting('zone', z)} className={`py-3 rounded-2xl text-xs font-black transition-all ${settings.zone === z ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>{z}</button>
                   ))}
                 </div>
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                  <p className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase mb-1 tracking-tight">Académies ({settings.zone}) :</p>
+                  <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 font-medium italic">
+                    {zoneDescriptions[settings.zone]}
+                  </p>
+                </div>
               </div>
             </div>
           </section>
+
           <section>
             <h2 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-4 px-2">Acquisition Mensuelle</h2>
             <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-5 transition-colors">
