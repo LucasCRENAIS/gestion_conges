@@ -11,7 +11,7 @@
   <meta name="theme-color" content="#1e1b4b">
   
   <link rel="icon" type="image/png" href="https://chatgpt.com/s/m_69bd113cb9248191b34532097fab86a5">
-  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2370/2370264.png">
+  <link rel="apple-touch-icon" href="https://chatgpt.com/s/m_69bd113cb9248191b34532097fab86a5">
 
   <!-- Manifest ID pour forcer la reconnaissance PWA -->
   <link id="manifest-link" rel="manifest">
@@ -244,7 +244,7 @@
         const id = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         if (holidays.includes(id)) return;
         
-        if(navigator.vibrate) navigator.vibrate(10);
+        if(navigator.vibrate) navigator.vibrate(7);
         
         const next = { ...leaves };
         if (next[id] && next[id].type === type) delete next[id];
