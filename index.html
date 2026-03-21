@@ -184,8 +184,7 @@
           cp: { acq: acqCP, bal: acqCP - totals.cp - Number(data.toCet.cp) + Number(adj.cp) },
           rtt: { acq: acqRTT, bal: acqRTT - totals.rtt - Number(data.toCet.rtt) + Number(adj.rtt) },
           sen: { acq: 1, bal: 1 - totals.seniority + Number(adj.seniority) },
-          cet: { bal: (Number(data.initialCet) || 0) + (Number(data.toCet.cp) + Number(data.toCet.rtt)) - totals.cet + Number(adj.cet) },
-          isAtRisk: sel > new Date(sel.getFullYear(), (data.settings?.expiryMonth ?? 5) - 1, data.settings?.expiryDay ?? 31)
+          cet: { bal: (Number(data.initialCet) || 0) + (Number(data.toCet.cp) + Number(data.toCet.rtt)) - totals.cet + Number(adj.cet) }
         };
       }, [data, totals]);
 
@@ -224,10 +223,7 @@
               <div className="text-right">
                 <label className="block text-[10px] text-indigo-300 font-bold uppercase mb-1">Projection :</label>
                 <div className="relative">
-                  <input type="date" value={data.targetDate} onChange={(e) => updateField('targetDate', e.target.value)} className={`bg-indigo-900 text-white rounded-xl border-none p-2 text-xs font-bold appearance-none ${calcs.isAtRisk ? 'ring-2 ring-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.4)]' : ''}`} />
-                  {calcs.isAtRisk && (
-                    <div className="absolute -bottom-5 right-0 text-[8px] font-black text-rose-400 uppercase animate-pulse">Jours à risque !</div>
-                  )}
+                  <input type="date" value={data.targetDate} onChange={(e) => updateField('targetDate', e.target.value)} className="bg-indigo-900 text-white rounded-xl border-none p-2 text-xs font-bold appearance-none" />
                 </div>
               </div>
             </div>
@@ -473,3 +469,5 @@
   </script>
 </body>
 </html>
+
+
