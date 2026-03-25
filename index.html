@@ -257,8 +257,10 @@
                 </div>
 
                 <div className="bg-slate-900 rounded-3xl p-5 shadow-lg text-white border border-slate-800">
-                  <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Solde CET</h3>
-                  <div className="text-3xl font-black text-indigo-400 mb-4">{calcs.cet.bal.toFixed(1)} <span className="text-sm font-normal text-white/50">j.</span></div>
+                  <div className="flex justify-between items-baseline mb-4">
+                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Solde CET</h3>
+                    <div className="text-3xl font-black text-indigo-400">{calcs.cet.bal.toFixed(1)} <span className="text-sm font-normal text-white/50">j.</span></div>
+                  </div>
                   <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-800">
                     <DarkInput label="Stock initial" val={data.initialCet} setVal={v => updateField('initialCet', v)} />
                     <DarkInput label="Ajustement" val={adj.cet} setVal={v => updateNested('adjustments', 'cet', v)} />
@@ -482,10 +484,10 @@
           </div>
           <div className="space-y-3">
             <div className="grid grid-cols-4 gap-1.5">
-              <button onClick={() => setType('cp')} className={`py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${type === 'cp' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>CP</button>
-              <button onClick={() => setType('rtt')} className={`py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${type === 'rtt' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>RTT</button>
-              <button onClick={() => setType('seniority')} className={`py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${type === 'seniority' ? 'bg-amber-500 text-white shadow-lg shadow-amber-200' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>ANC.</button>
-              <button onClick={() => setType('cet')} className={`py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${type === 'cet' ? 'bg-slate-900 text-white shadow-lg shadow-slate-300' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>CET</button>
+              <button onClick={() => setType('cp')} className={`py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${type === 'cp' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>CP</button>
+              <button onClick={() => setType('rtt')} className={`py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${type === 'rtt' ? 'bg-emerald-500 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>RTT</button>
+              <button onClick={() => setType('seniority')} className={`py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${type === 'seniority' ? 'bg-amber-500 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>ANC.</button>
+              <button onClick={() => setType('cet')} className={`py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${type === 'cet' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>CET</button>
             </div>
             <div className="flex gap-1.5">
               {[1, 0.5].map(v => <button key={v} onClick={() => setDur(v)} className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${dur === v ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>{v === 1 ? '1 Jour' : '0.5 Jour'}</button>)}
@@ -525,4 +527,3 @@
   </script>
 </body>
 </html>
-
