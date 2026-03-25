@@ -160,9 +160,9 @@
       }, [data]);
 
       const updateField = (k, v) => setData(prev => ({ ...prev, [k]: v }));
-      const updateNested = (c, f, v) => setData(prev => ({ ...prev, [c]: { ...prev[c], [f]: v } }));
+      const updateNested = (c, f, v) => setData(prev => ({ ...prev, [c]: { ...(prev[c] || {}), [f]: v } }));
       const updateSetting = (f, v) => {
-        setData(prev => ({ ...prev, settings: { ...prev.settings, [f]: v } }));
+        setData(prev => ({ ...prev, settings: { ...(prev.settings || {}), [f]: v } }));
         if (f === 'zone') setData(prev => ({ ...prev, vacations: [], lastAnnualUpdate: null }));
       };
 
@@ -173,24 +173,25 @@
       }, [data.calendarLeaves]);
 
       const calcs = useMemo(() => {
-        const sel = new Date(data.targetDate);
+        const sel = new Date(data.targetDate || new Date());
         const months = Math.max(0, (sel - new Date(sel.getFullYear(), 0, 1)) / (1000 * 60 * 60 * 24 * 30.44));
         const rateCP = data.settings?.rateCP ?? 2.5;
         const rateRTT = data.settings?.rateRTT ?? 1.0;
         const acqCP = months * rateCP, acqRTT = months * rateRTT;
         const adj = data.adjustments || { cp: 0, rtt: 0, seniority: 0, cet: 0 };
+        const toCet = data.toCet || { cp: 0, rtt: 0 };
         
         return {
-          cp: { acq: acqCP, bal: acqCP - totals.cp - Number(data.toCet.cp) + Number(adj.cp) },
-          rtt: { acq: acqRTT, bal: acqRTT - totals.rtt - Number(data.toCet.rtt) + Number(adj.rtt) },
-          sen: { acq: 1, bal: 1 - totals.seniority + Number(adj.seniority) },
-          cet: { bal: (Number(data.initialCet) || 0) + (Number(data.toCet.cp) + Number(data.toCet.rtt)) - totals.cet + Number(adj.cet) }
+          cp: { acq: acqCP, bal: acqCP - totals.cp - Number(toCet.cp || 0) + Number(adj.cp || 0) },
+          rtt: { acq: acqRTT, bal: acqRTT - totals.rtt - Number(toCet.rtt || 0) + Number(adj.rtt || 0) },
+          sen: { acq: 1, bal: 1 - totals.seniority + Number(adj.seniority || 0) },
+          cet: { bal: (Number(data.initialCet) || 0) + (Number(toCet.cp || 0) + Number(toCet.rtt || 0)) - totals.cet + Number(adj.cet || 0) }
         };
       }, [data, totals]);
 
       const exportToCalendar = () => {
         let ics = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Suivi Conges//FR\n";
-        Object.entries(data.calendarLeaves).forEach(([dateStr, leave]) => {
+        Object.entries(data.calendarLeaves || {}).forEach(([dateStr, leave]) => {
           const [y, m, d] = dateStr.split('-');
           const startDate = `${y}${m}${d}`;
           const nextDay = new Date(parseInt(y), parseInt(m) - 1, parseInt(d) + 1);
@@ -215,64 +216,63 @@
       };
 
       const adj = data.adjustments || { cp: 0, rtt: 0, seniority: 0, cet: 0 };
+      const toCet = data.toCet || { cp: 0, rtt: 0 };
 
       return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-safe-content">
-          <header className="bg-indigo-950 text-white pt-safe pb-8 px-5 rounded-b-[40px] shadow-2xl sticky top-0 z-10 transition-colors">
-            <div className="flex justify-between items-center mb-6">
+          <header className="bg-indigo-950 text-white pt-safe pb-10 px-6 rounded-b-[48px] shadow-2xl sticky top-0 z-10 transition-colors">
+            <div className="flex justify-between items-center mb-8">
               <div className="flex items-center gap-3">
-                <h1 className="text-xl font-bold tracking-tight">Congés & CET</h1>
-                <div className={`w-2.5 h-2.5 rounded-full transition-colors duration-500 ${syncStatus === 'synced' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : syncStatus === 'saving' ? 'bg-amber-400 animate-pulse-fast' : 'bg-rose-500'}`}></div>
+                <h1 className="text-2xl font-black tracking-tight">Suivi Congés</h1>
+                <div className={`w-3 h-3 rounded-full transition-colors duration-500 ${syncStatus === 'synced' ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)]' : syncStatus === 'saving' ? 'bg-amber-400 animate-pulse-fast' : 'bg-rose-500'}`}></div>
               </div>
               <div className="text-right">
-                <label className="block text-[10px] text-indigo-300 font-bold uppercase mb-1">Projection :</label>
-                <div className="relative">
-                  <input type="date" value={data.targetDate} onChange={(e) => updateField('targetDate', e.target.value)} className="bg-indigo-900 text-white rounded-xl border-none p-2 text-xs font-bold appearance-none" />
-                </div>
+                <label className="block text-[10px] text-indigo-300 font-bold uppercase mb-1">Projection</label>
+                <input type="date" value={data.targetDate || ""} onChange={(e) => updateField('targetDate', e.target.value)} className="bg-indigo-900/50 text-white rounded-2xl border border-indigo-800 p-2.5 text-xs font-bold appearance-none outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <HeaderStat label="Solde CP" val={calcs.cp.bal} acq={calcs.cp.acq} adj={adj.cp} onUpdate={v => updateNested('adjustments', 'cp', v)} />
               <HeaderStat label="Solde RTT" val={calcs.rtt.bal} acq={calcs.rtt.acq} adj={adj.rtt} onUpdate={v => updateNested('adjustments', 'rtt', v)} />
             </div>
           </header>
 
-          <main className="p-4 space-y-4 max-w-md mx-auto">
+          <main className="p-5 space-y-6 max-w-md mx-auto -mt-6">
             {activeTab === 'calendar' ? (
               <React.Fragment>
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center transition-colors">
+                <div className="bg-white dark:bg-slate-800 rounded-[32px] p-5 shadow-lg border border-slate-100 dark:border-slate-700 flex justify-between items-center transition-all hover:shadow-xl">
                   <div>
-                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ancienneté</h3>
-                    <div className="text-xl font-black text-slate-800 dark:text-slate-100">{calcs.sen.bal.toFixed(1)} <span className="text-xs font-normal text-slate-300">j.</span></div>
+                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Ancienneté</h3>
+                    <div className="text-2xl font-black text-slate-800 dark:text-slate-100">{calcs.sen.bal.toFixed(1)} <span className="text-sm font-normal text-slate-300">jours</span></div>
                   </div>
-                  <div className="w-24 bg-slate-50 dark:bg-slate-800 p-2 rounded-xl">
-                    <label className="text-[7px] font-bold text-slate-400 block mb-0.5 uppercase text-center">Ajustement</label>
+                  <div className="w-24 bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-2xl border border-slate-100 dark:border-slate-700">
+                    <label className="text-[8px] font-black text-slate-400 block mb-1 uppercase text-center tracking-tighter">Ajustement</label>
                     <input 
                       type="number" step="0.5" 
-                      value={adj.seniority === 0 ? "0" : adj.seniority} 
+                      value={adj.seniority === 0 ? "0" : (adj.seniority ?? "")} 
                       onChange={e => updateNested('adjustments', 'seniority', e.target.value === '' ? '' : parseFloat(e.target.value))} 
-                      className="w-full bg-transparent text-xs font-black border-none p-0 focus:outline-none dark:text-white text-center" 
+                      className="w-full bg-transparent text-sm font-black border-none p-0 focus:outline-none dark:text-white text-center" 
                     />
                   </div>
                 </div>
 
-                <div className="bg-slate-900 rounded-3xl p-5 shadow-lg text-white border border-slate-800">
-                  <div className="flex justify-between items-baseline mb-4">
-                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Solde CET</h3>
-                    <div className="text-3xl font-black text-indigo-400">{calcs.cet.bal.toFixed(1)} <span className="text-sm font-normal text-white/50">j.</span></div>
+                <div className="bg-slate-900 rounded-[32px] p-6 shadow-2xl text-white border border-slate-800 transition-all">
+                  <div className="flex justify-between items-baseline mb-6">
+                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em]">Solde CET</h3>
+                    <div className="text-4xl font-black text-indigo-400 tracking-tighter">{calcs.cet.bal.toFixed(1)} <span className="text-base font-normal text-white/40">j.</span></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-800">
-                    <DarkInput label="Stock initial" val={data.initialCet} setVal={v => updateField('initialCet', v)} />
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800/50">
+                    <DarkInput label="Initial" val={data.initialCet} setVal={v => updateField('initialCet', v)} />
                     <DarkInput label="Ajustement" val={adj.cet} setVal={v => updateNested('adjustments', 'cet', v)} />
-                    <DarkInput label="+ RTT versés" val={data.toCet.rtt} setVal={v => updateNested('toCet', 'rtt', v)} highlight />
-                    <DarkInput label="+ CP versés" val={data.toCet.cp} setVal={v => updateNested('toCet', 'cp', v)} highlight />
+                    <DarkInput label="+ RTT" val={toCet.rtt} setVal={v => updateNested('toCet', 'rtt', v)} highlight />
+                    <DarkInput label="+ CP" val={toCet.cp} setVal={v => updateNested('toCet', 'cp', v)} highlight />
                   </div>
                 </div>
 
                 <CalendarWidget 
                   view={viewDate} 
                   setView={setViewDate} 
-                  leaves={data.calendarLeaves} 
+                  leaves={data.calendarLeaves || {}} 
                   setLeaves={v => updateField('calendarLeaves', v)} 
                   vacations={data.vacations || []}
                   zoneLabel={data.settings?.zone || 'Zone C'}
@@ -281,28 +281,28 @@
                 />
               </React.Fragment>
             ) : (
-              <SettingsPage settings={data.settings} updateSetting={updateSetting} />
+              <SettingsPage settings={data.settings || {}} updateSetting={updateSetting} />
             )}
           </main>
 
-          <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 flex justify-around items-center z-20 pb-[calc(12px+var(--sab,0px))] transition-colors">
-            <TabButton active={activeTab === 'calendar'} label="Calendrier" icon="calendar" onClick={() => setActiveTab('calendar')} />
-            <TabButton active={activeTab === 'settings'} label="Paramètres" icon="settings" onClick={() => setActiveTab('settings')} />
+          <nav className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-t border-slate-100/50 dark:border-slate-700/50 px-8 py-4 flex justify-around items-center z-20 pb-[calc(16px+var(--sab,0px))] transition-colors shadow-[0_-8px_30px_rgba(0,0,0,0.04)]">
+            <TabButton active={activeTab === 'calendar'} label="Tableau" icon="calendar" onClick={() => setActiveTab('calendar')} />
+            <TabButton active={activeTab === 'settings'} label="Options" icon="settings" onClick={() => setActiveTab('settings')} />
           </nav>
         </div>
       );
     };
 
     const TabButton = ({ active, label, icon, onClick }) => (
-      <button onClick={onClick} className={`flex flex-col items-center gap-1 transition-all ${active ? 'text-indigo-600' : 'text-slate-400'}`}>
-        <div className={`p-1 rounded-xl ${active ? 'bg-indigo-50 dark:bg-indigo-900/30' : ''}`}>
+      <button onClick={onClick} className={`flex flex-col items-center gap-1.5 transition-all active:scale-95 ${active ? 'text-indigo-600' : 'text-slate-300 dark:text-slate-600'}`}>
+        <div className={`p-2 rounded-2xl transition-all ${active ? 'bg-indigo-50 dark:bg-indigo-900/40' : ''}`}>
           {icon === 'calendar' ? (
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
           ) : (
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
           )}
         </div>
-        <span className="text-[10px] font-black uppercase tracking-tighter">{label}</span>
+        <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
       </button>
     );
 
@@ -314,15 +314,15 @@
       };
 
       return (
-        <div className="space-y-6 py-2 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="space-y-6 py-2 animate-in fade-in slide-in-from-bottom-4 duration-300 pb-20">
           <section>
             <h2 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-4 px-2">Affichage</h2>
-            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-4 transition-colors">
+            <div className="bg-white dark:bg-slate-800 rounded-[32px] p-6 shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-3">Thème de l'application</label>
-                <div className="grid grid-cols-3 gap-2">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-4 tracking-tighter">Thème de l'application</label>
+                <div className="grid grid-cols-3 gap-3">
                   {[{id:'light',label:'Clair'},{id:'dark',label:'Sombre'},{id:'system',label:'Auto'}].map(t => (
-                    <button key={t.id} onClick={() => updateSetting('theme', t.id)} className={`py-3 rounded-2xl text-xs font-black transition-all ${settings.theme === t.id ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>{t.label}</button>
+                    <button key={t.id} onClick={() => updateSetting('theme', t.id)} className={`py-4 rounded-2xl text-[11px] font-black transition-all ${settings.theme === t.id ? 'bg-indigo-600 text-white shadow-lg scale-105' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>{t.label}</button>
                   ))}
                 </div>
               </div>
@@ -331,18 +331,18 @@
 
           <section>
             <h2 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-4 px-2">Scolarité</h2>
-            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-4 transition-colors">
+            <div className="bg-white dark:bg-slate-800 rounded-[32px] p-6 shadow-sm border border-slate-100 dark:border-slate-700 space-y-5">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-3">Zone sélectionnée</label>
-                <div className="grid grid-cols-3 gap-2 mb-4">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-4 tracking-tighter">Zone sélectionnée</label>
+                <div className="grid grid-cols-3 gap-3 mb-5">
                   {['Zone A', 'Zone B', 'Zone C'].map(z => (
-                    <button key={z} onClick={() => updateSetting('zone', z)} className={`py-3 rounded-2xl text-xs font-black transition-all ${settings.zone === z ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>{z}</button>
+                    <button key={z} onClick={() => updateSetting('zone', z)} className={`py-4 rounded-2xl text-[11px] font-black transition-all ${settings.zone === z ? 'bg-indigo-600 text-white shadow-lg scale-105' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>{z}</button>
                   ))}
                 </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-                  <p className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase mb-1 tracking-tight">Académies ({settings.zone}) :</p>
+                <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-[20px] border border-slate-100 dark:border-slate-700">
+                  <p className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase mb-2">Académies ({settings.zone || 'Zone C'})</p>
                   <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 font-medium italic">
-                    {zoneDescriptions[settings.zone]}
+                    {zoneDescriptions[settings.zone || 'Zone C']}
                   </p>
                 </div>
               </div>
@@ -351,14 +351,14 @@
 
           <section>
             <h2 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-4 px-2">Acquisition Mensuelle</h2>
-            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-5 transition-colors">
+            <div className="bg-white dark:bg-slate-800 rounded-[32px] p-6 shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-[11px] font-black text-slate-700 dark:text-slate-200">CP</span>
-                <input type="number" step="0.1" value={settings.rateCP} onChange={e => updateSetting('rateCP', e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-20 bg-slate-50 dark:bg-slate-700 text-right p-3 rounded-xl font-black text-indigo-600 border-none outline-none" />
+                <span className="text-xs font-black text-slate-700 dark:text-slate-200">CP</span>
+                <input type="number" step="0.1" value={settings.rateCP ?? ""} onChange={e => updateSetting('rateCP', e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-20 bg-slate-50 dark:bg-slate-700 text-right p-4 rounded-2xl font-black text-indigo-600 border-none outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
-              <div className="flex justify-between items-center pt-5 border-t border-slate-50 dark:border-slate-700">
-                <span className="text-[11px] font-black text-slate-700 dark:text-slate-200">RTT</span>
-                <input type="number" step="0.1" value={settings.rateRTT} onChange={e => updateSetting('rateRTT', e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-20 bg-slate-50 dark:bg-slate-700 text-right p-3 rounded-xl font-black text-emerald-600 border-none outline-none" />
+              <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-700">
+                <span className="text-xs font-black text-slate-700 dark:text-slate-200">RTT</span>
+                <input type="number" step="0.1" value={settings.rateRTT ?? ""} onChange={e => updateSetting('rateRTT', e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-20 bg-slate-50 dark:bg-slate-700 text-right p-4 rounded-2xl font-black text-emerald-600 border-none outline-none focus:ring-2 focus:ring-emerald-500" />
               </div>
             </div>
           </section>
@@ -367,20 +367,20 @@
     };
 
     const HeaderStat = ({ label, val, acq, adj, onUpdate }) => (
-      <div className="bg-white/5 p-3 rounded-2xl border border-white/10 flex flex-col gap-2">
-        <h3 className="text-[10px] font-bold uppercase opacity-50">{label}</h3>
+      <div className="bg-white/10 p-4 rounded-3xl border border-white/20 backdrop-blur-md flex flex-col gap-3">
+        <h3 className="text-[10px] font-black uppercase opacity-60 tracking-[0.1em]">{label}</h3>
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
-            <div className="text-xl font-black tracking-tight">{val.toFixed(1)} <span className="text-xs font-normal opacity-30">j.</span></div>
-            <p className="text-[8px] opacity-30 font-bold tracking-tighter uppercase">Acquis : {acq.toFixed(1)}</p>
+            <div className="text-2xl font-black tracking-tighter">{Number(val || 0).toFixed(1)} <span className="text-xs font-normal opacity-40">j.</span></div>
+            <p className="text-[8px] opacity-40 font-bold uppercase mt-1">Acquis : {Number(acq || 0).toFixed(1)}</p>
           </div>
-          <div className="bg-black/30 p-2.5 rounded-xl w-[4.5rem]">
-            <label className="block text-[7px] font-bold text-indigo-400 uppercase mb-1 text-center">Ajust.</label>
+          <div className="bg-black/20 p-2.5 rounded-2xl w-[4.5rem] border border-white/5">
+            <label className="block text-[7px] font-black text-indigo-300 uppercase mb-1 text-center">Ajust.</label>
             <input 
               type="number" step="0.5" 
-              value={adj === 0 ? "0" : adj} 
+              value={adj === 0 ? "0" : (adj ?? "")} 
               onChange={e => onUpdate(e.target.value === '' ? '' : parseFloat(e.target.value))} 
-              className="w-full bg-transparent text-[13px] font-black text-white border-none p-0 focus:outline-none text-center" 
+              className="w-full bg-transparent text-sm font-black text-white border-none p-0 focus:outline-none text-center" 
             />
           </div>
         </div>
@@ -388,13 +388,13 @@
     );
 
     const DarkInput = ({ label, val, setVal, highlight }) => (
-      <div className="bg-white/5 p-2 rounded-xl text-center">
-        <label className={`text-[8px] font-bold uppercase block mb-0.5 ${highlight ? 'text-indigo-400' : 'text-slate-500'}`}>{label}</label>
+      <div className="bg-white/5 p-3 rounded-2xl text-center border border-white/5">
+        <label className={`text-[8px] font-black uppercase block mb-1.5 ${highlight ? 'text-indigo-400' : 'text-slate-500'}`}>{label}</label>
         <input 
           type="number" step="0.5" 
-          value={val === 0 ? "0" : val} 
+          value={val === 0 ? "0" : (val ?? "")} 
           onChange={e => setVal(e.target.value === '' ? '' : parseFloat(e.target.value))} 
-          className="w-full bg-transparent text-white text-xs font-bold border-none p-0 focus:outline-none text-center" 
+          className="w-full bg-transparent text-white text-sm font-black border-none p-0 focus:outline-none text-center" 
         />
       </div>
     );
@@ -413,27 +413,16 @@
       const today = new Date();
       const todayId = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
 
-      // Navigation fonctions
       const prevMonth = useCallback(() => setView(new Date(y, m-1, 1)), [y, m, setView]);
       const nextMonth = useCallback(() => setView(new Date(y, m+1, 1)), [y, m, setView]);
 
-      // Swipe Handlers
-      const onTouchStart = (e) => {
-        touchEndX.current = null;
-        touchStartX.current = e.targetTouches[0].clientX;
-      };
-
-      const onTouchMove = (e) => {
-        touchEndX.current = e.targetTouches[0].clientX;
-      };
-
+      const onTouchStart = (e) => { touchEndX.current = null; touchStartX.current = e.targetTouches[0].clientX; };
+      const onTouchMove = (e) => { touchEndX.current = e.targetTouches[0].clientX; };
       const onTouchEnd = () => {
         if (!touchStartX.current || !touchEndX.current) return;
         const distance = touchStartX.current - touchEndX.current;
-        const isSignificant = Math.abs(distance) > 50;
-        if (isSignificant) {
-          if (distance > 0) nextMonth();
-          else prevMonth();
+        if (Math.abs(distance) > 60) {
+          if (distance > 0) nextMonth(); else prevMonth();
         }
       };
 
@@ -441,65 +430,105 @@
         const id = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         const dayOfWeek = new Date(y, m, d).getDay();
         if (dayOfWeek === 0 || dayOfWeek === 6 || holidays.includes(id)) return;
-        if(navigator.vibrate) navigator.vibrate(10);
+        if(navigator.vibrate) navigator.vibrate(8);
         const next = { ...leaves };
         if (next[id] && next[id].type === type) delete next[id];
         else next[id] = { type, duration: dur };
         setLeaves(next);
       };
 
+      const typeConfigs = {
+        cp: { color: 'bg-indigo-600', text: 'CP' },
+        rtt: { color: 'bg-emerald-500', text: 'RTT' },
+        seniority: { color: 'bg-amber-500', text: 'ANC.' },
+        cet: { color: 'bg-slate-700', text: 'CET' }
+      };
+
       return (
         <div 
-          className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 transition-colors touch-pan-y"
+          className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700 transition-all touch-pan-y"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
           <div className="flex justify-between items-center mb-6 px-2">
-             <button onClick={prevMonth} className="p-2 bg-slate-50 dark:bg-slate-700 rounded-xl text-slate-400"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg></button>
-             <span className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-slate-200">{months[m]} {y}</span>
-             <button onClick={nextMonth} className="p-2 bg-slate-50 dark:bg-slate-700 rounded-xl text-slate-400"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg></button>
+             <button onClick={prevMonth} className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl text-slate-400 hover:text-indigo-600 active:scale-90 transition-all shadow-sm"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg></button>
+             <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-800 dark:text-slate-100">{months[m]} {y}</span>
+             <button onClick={nextMonth} className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl text-slate-400 hover:text-indigo-600 active:scale-90 transition-all shadow-sm"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg></button>
           </div>
-          <div className="grid grid-cols-7 gap-1.5 mb-6">
-            {['L','M','M','J','V','S','D'].map(d => <div key={d} className="text-center text-[9px] font-black text-slate-200 py-1">{d}</div>)}
-            {Array.from({length:start}).map((_,i) => <div key={i} />)}
+
+          <div className="grid grid-cols-7 gap-1.5 mb-8">
+            {['L','M','M','J','V','S','D'].map((d, i) => <div key={`day-${i}`} className="text-center text-[10px] font-black text-slate-300 dark:text-slate-600 py-1">{d}</div>)}
+            {Array.from({length:start}).map((_,i) => <div key={`empty-${i}`} />)}
             {Array.from({length:days}).map((_,i) => {
               const d = i+1; const id = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
               const l = leaves[id]; const isHoliday = holidays.includes(id); 
               const isVacation = vacations.some(v => id >= v.start && id <= v.end);
               const isToday = id === todayId;
               const isWeekend = new Date(y,m,d).getDay() === 0 || new Date(y,m,d).getDay() === 6;
-              let bgColor = 'bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300';
-              if (isWeekend) bgColor = 'bg-slate-50 dark:bg-slate-800 opacity-40 text-slate-400'; 
-              else if (isHoliday) bgColor = 'bg-rose-50 dark:bg-rose-900/30 text-rose-400';
-              else if (l) bgColor = l.type==='cp'?'bg-indigo-600 text-white':l.type==='rtt'?'bg-emerald-500 text-white':l.type==='seniority'?'bg-amber-500 text-white':'bg-slate-900 text-white';
+              
+              let btnClass = 'relative h-[42px] w-full rounded-2xl text-[12px] font-black transition-all active:scale-75 flex items-center justify-center ';
+              if (isWeekend) btnClass += 'bg-slate-50 dark:bg-slate-900/50 opacity-30 text-slate-400 cursor-not-allowed'; 
+              else if (isHoliday) btnClass += 'bg-rose-50 dark:bg-rose-900/20 text-rose-500';
+              else if (l) {
+                if (l.type === 'cp') btnClass += 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 dark:shadow-none scale-105 z-[1]';
+                else if (l.type === 'rtt') btnClass += 'bg-emerald-500 text-white shadow-lg shadow-emerald-100 dark:shadow-none scale-105 z-[1]';
+                else if (l.type === 'seniority') btnClass += 'bg-amber-500 text-white shadow-lg shadow-amber-100 dark:shadow-none scale-105 z-[1]';
+                else btnClass += 'bg-slate-700 text-white scale-105 z-[1]';
+              } else {
+                btnClass += 'bg-slate-50 dark:bg-slate-900/80 text-slate-700 dark:text-slate-300';
+              }
+              
               return (
-                <button key={d} onClick={() => toggle(d)} className={`relative h-11 rounded-2xl text-[11px] font-black transition-all active:scale-90 ${bgColor} ${isToday && !l ? 'border-2 border-indigo-200' : ''}`}>
-                  {d}{l?.duration === 0.5 && '*'}
-                  {isHoliday && <span className="text-[5px] absolute bottom-1 font-bold">FÉRIÉ</span>}
-                  {isVacation && !l && !isHoliday && <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-indigo-300 rounded-full"></div>}
+                <button key={d} onClick={() => toggle(d)} className={`${btnClass} ${isToday && !l ? 'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-800' : ''}`}>
+                  {d}{l?.duration === 0.5 && <span className="absolute -top-1 -right-1 text-[8px] bg-white dark:bg-slate-800 text-indigo-600 rounded-full w-4 h-4 border border-indigo-100 flex items-center justify-center font-black">½</span>}
+                  {isHoliday && <span className="text-[5px] absolute bottom-1 left-0 right-0 font-black tracking-tighter opacity-70">FÉRIÉ</span>}
+                  {isVacation && !l && !isHoliday && <div className="absolute top-1.5 right-1.5 w-1 h-1 bg-indigo-300 dark:bg-indigo-500 rounded-full"></div>}
                 </button>
               );
             })}
           </div>
-          <div className="space-y-3">
-            <div className="grid grid-cols-4 gap-1.5">
-              <button onClick={() => setType('cp')} className={`py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${type === 'cp' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>CP</button>
-              <button onClick={() => setType('rtt')} className={`py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${type === 'rtt' ? 'bg-emerald-500 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>RTT</button>
-              <button onClick={() => setType('seniority')} className={`py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${type === 'seniority' ? 'bg-amber-500 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>ANC.</button>
-              <button onClick={() => setType('cet')} className={`py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${type === 'cet' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>CET</button>
-            </div>
-            <div className="flex gap-1.5">
-              {[1, 0.5].map(v => <button key={v} onClick={() => setDur(v)} className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${dur === v ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'}`}>{v === 1 ? '1 Jour' : '0.5 Jour'}</button>)}
-            </div>
-            <div className="flex items-center justify-between pt-2">
-              <div className="flex items-center gap-2 text-[9px] text-slate-300 font-bold uppercase italic"><div className="w-1.5 h-1.5 bg-indigo-300 rounded-full"></div> Vacances ({zoneLabel})</div>
-              <div className="flex gap-2">
-                <button onClick={onReset} className="flex items-center gap-1 px-3 py-1.5 bg-rose-50 text-rose-500 rounded-lg text-[9px] font-black uppercase border border-rose-100 active:bg-rose-100 transition-colors">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                  RAZ
+
+          <div className="space-y-4">
+            {/* Type Selector with conditional colors */}
+            <div className="bg-slate-50 dark:bg-slate-900 p-1.5 rounded-[24px] grid grid-cols-4 gap-1.5">
+              {Object.entries(typeConfigs).map(([key, cfg]) => (
+                <button 
+                  key={key} 
+                  onClick={() => setType(key)} 
+                  className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${type === key ? `${cfg.color} text-white shadow-lg` : 'text-slate-400'}`}
+                >
+                  {cfg.text}
                 </button>
-                <button onClick={onExport} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-700 text-indigo-500 rounded-lg text-[9px] font-black uppercase border border-slate-100">Export ICS</button>
+              ))}
+            </div>
+
+            {/* Duration Selector */}
+            <div className="flex gap-2">
+              {[
+                {v: 1, l: 'JOUR'}, 
+                {v: 0.5, l: 'DEMI'}
+              ].map(item => (
+                <button 
+                  key={item.v} 
+                  onClick={() => setDur(item.v)} 
+                  className={`flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all ${dur === item.v ? 'border-indigo-600 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20' : 'border-transparent bg-slate-50 dark:bg-slate-900 text-slate-400'}`}
+                >
+                  {item.l}
+                </button>
+              ))}
+            </div>
+
+            {/* Export & Footer with light transparency */}
+            <div className="flex items-center justify-between pt-4 border-t border-slate-50/50 dark:border-slate-700/50">
+              <div className="flex items-center gap-2 text-[9px] text-slate-400 font-black uppercase tracking-tight opacity-70"><div className="w-1 h-1 bg-indigo-300 rounded-full"></div> Vacances {zoneLabel}</div>
+              <div className="flex items-center gap-2">
+                <button onClick={onExport} className="px-5 py-3 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-md">
+                  Export .ics
+                </button>
+                <button onClick={onReset} className="p-3 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-xl active:bg-rose-100 transition-colors shadow-sm">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
               </div>
             </div>
           </div>
