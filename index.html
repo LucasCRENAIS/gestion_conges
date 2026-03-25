@@ -43,7 +43,6 @@
     .pt-safe { padding-top: calc(10px + var(--sat, 20px)); }
     .pb-safe-content { padding-bottom: calc(100px + var(--sab, 20px)); }
     
-    /* Snappy Transitions */
     .snappy-transition {
       transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
@@ -51,24 +50,22 @@
       transform: scale(0.96);
     }
     
-    /* Nouvel effet de transition entre les menus */
     .view-transition-enter {
       animation: viewEnter 0.25s cubic-bezier(0.19, 1, 0.22, 1) forwards;
     }
     
     @keyframes viewEnter {
-      from { 
-        opacity: 0; 
-        transform: scale(0.98) translateY(10px); 
-      }
-      to { 
-        opacity: 1; 
-        transform: scale(1) translateY(0); 
-      }
+      from { opacity: 0; transform: scale(0.98) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
     }
 
     @keyframes pulse-custom { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.1); } }
     .animate-pulse-fast { animation: pulse-custom 1s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+    /* Sliding effect classes */
+    .type-slider-transition {
+      transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1), background-color 0.3s ease;
+    }
   </style>
 </head>
 <body>
@@ -236,9 +233,7 @@
         document.body.appendChild(link); link.click(); document.body.removeChild(link);
       };
 
-      const resetCalendar = () => {
-        updateField('calendarLeaves', {});
-      };
+      const resetCalendar = () => updateField('calendarLeaves', {});
 
       const adj = data.adjustments || { cp: 0, rtt: 0, seniority: 0, cet: 0 };
       const toCet = data.toCet || { cp: 0, rtt: 0 };
@@ -324,7 +319,7 @@
       <button onClick={onClick} className={`flex flex-col items-center gap-1.5 transition-all active:scale-90 ${active ? 'text-indigo-600' : 'text-slate-300 dark:text-slate-600'}`}>
         <div className={`p-2 rounded-2xl transition-all duration-300 ${active ? 'bg-indigo-50 dark:bg-indigo-900/40 shadow-inner' : ''}`}>
           {icon === 'calendar' ? (
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z" /></svg>
           ) : (
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
           )}
@@ -465,10 +460,10 @@
       };
 
       const typeConfigs = {
-        cp: { color: 'bg-indigo-600', text: 'CP' },
-        rtt: { color: 'bg-emerald-500', text: 'RTT' },
-        seniority: { color: 'bg-amber-500', text: 'ANC.' },
-        cet: { color: 'bg-slate-700', text: 'CET' }
+        cp: { color: 'bg-indigo-600', text: 'CP', offset: '0%' },
+        rtt: { color: 'bg-emerald-500', text: 'RTT', offset: '25%' },
+        seniority: { color: 'bg-amber-500', text: 'ANC.', offset: '50%' },
+        cet: { color: 'bg-slate-700', text: 'CET', offset: '75%' }
       };
 
       return (
@@ -517,12 +512,18 @@
           </div>
 
           <div className="space-y-4">
-            <div className="bg-slate-50 dark:bg-slate-900 p-1.5 rounded-[24px] grid grid-cols-4 gap-1.5">
+            {/* Nouveau sélecteur de type avec effet de glissement */}
+            <div className="bg-slate-50 dark:bg-slate-900 p-1.5 rounded-[24px] relative flex overflow-hidden">
+              <div 
+                className={`absolute top-1.5 bottom-1.5 left-[1.5%] w-[23.5%] rounded-[18px] shadow-lg type-slider-transition ${typeConfigs[type].color}`}
+                style={{ transform: `translateX(${Object.keys(typeConfigs).indexOf(type) * 102}%)` }}
+              ></div>
+              
               {Object.entries(typeConfigs).map(([key, cfg]) => (
                 <button 
                   key={key} 
                   onClick={() => setType(key)} 
-                  className={`py-3 rounded-[18px] text-[10px] font-black uppercase tracking-wider transition-all snappy-transition ${type === key ? `${cfg.color} text-white shadow-lg` : 'text-slate-400'}`}
+                  className={`relative z-[1] flex-1 py-3 text-[10px] font-black uppercase tracking-wider transition-colors duration-300 ${type === key ? 'text-white' : 'text-slate-400 hover:text-slate-500'}`}
                 >
                   {cfg.text}
                 </button>
