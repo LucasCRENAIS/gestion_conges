@@ -275,7 +275,7 @@
               </div>
             </header>
           )}
-          <main className="p-5 space-y-6 max-w-md mx-auto -mt-6 pt-[14.25rem]">
+          <main className="p-5 space-y-6 max-w-md mx-auto -mt-6 {activeTab === 'calendar' ? (pt-[14.25rem]) : ()}">
             {activeTab === 'calendar' ? (
               <div key="view-calendar" className="view-transition-enter flex flex-col gap-6">
                 <div className="bg-white dark:bg-slate-800 rounded-[32px] p-5 shadow-lg border border-slate-100 dark:border-slate-700 flex justify-between items-center transition-all hover:shadow-xl mt-4">
