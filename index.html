@@ -296,16 +296,35 @@
           return a.toISOString().slice(0, 10) === d2;
         };
 
+        // 🔥 NOUVEAU : ignore les week-ends
+        const isNextWorkingDay = (d1, d2) => {
+          const date = new Date(d1);
+
+          while (true) {
+            date.setDate(date.getDate() + 1);
+
+            const day = date.getDay(); // 0 = dimanche, 6 = samedi
+            if (day === 0 || day === 6) continue;
+
+            return date.toISOString().slice(0, 10) === d2;
+          }
+        };
+
         const canMerge = (prev, next) => {
 
           const prevSlot = getSlot(prev);
           const nextSlot = getSlot(next);
 
+          // même jour
           if (prev.dateStr === next.dateStr) {
             return prevSlot.end === nextSlot.start;
           }
 
-          if (isNextDay(prev.dateStr, next.dateStr)) {
+          // 👉 continuité classique OU via week-end
+          if (
+            isNextDay(prev.dateStr, next.dateStr) ||
+            isNextWorkingDay(prev.dateStr, next.dateStr)
+          ) {
             return prevSlot.end === 17 && nextSlot.start === 8;
           }
 
@@ -354,7 +373,6 @@
 
           const hasHalfDay = group.some(l => l.duration === 0.5);
 
-          // 🟢 CAS ALL-DAY = couvre des journées complètes
           const isAllDay =
             startSlot.start === 8 &&
             endSlot.end === 17 &&
@@ -368,7 +386,6 @@
           ics.push(`DTSTAMP:${formatDateTime(new Date())}Z`);
 
           if (isAllDay) {
-            // 👉 ALL DAY (clé pour Outlook)
             const start = formatDate(startDate);
 
             const end = new Date(endDate);
@@ -377,7 +394,6 @@
             ics.push(`DTSTART;VALUE=DATE:${start}`);
             ics.push(`DTEND;VALUE=DATE:${formatDate(end)}`);
           } else {
-            // 👉 avec heures
             startDate.setHours(startSlot.start, 0, 0);
             endDate.setHours(endSlot.end, 0, 0);
 
