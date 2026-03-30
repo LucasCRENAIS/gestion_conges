@@ -221,27 +221,159 @@
         };
       }, [data, totals]);
 
-      const exportToCalendar = () => {
-        let ics = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Suivi Conges//FR\n";
-        Object.entries(data.calendarLeaves || {}).forEach(([dateStr, leave]) => {
-          const [y, m, d] = dateStr.split('-');
-          const startDate = `${y}${m}${d}`;
-          const nextDay = new Date(parseInt(y), parseInt(m) - 1, parseInt(d) + 1);
-          const endDate = `${nextDay.getFullYear()}${String(nextDay.getMonth() + 1).padStart(2, '0')}${String(nextDay.getDate()).padStart(2, '0')}`;
-          const typeName = leave.type.toUpperCase() === 'SENIORITY' ? 'ANCIENNETÉ' : leave.type.toUpperCase();
-          ics += "BEGIN:VEVENT\n";
-          ics += `DTSTART;VALUE=DATE:${startDate}\n`;
-          ics += `DTEND;VALUE=DATE:${endDate}\n`;
-          ics += `SUMMARY:Congé posé : ${typeName}${leave.duration === 0.5 ? ' (Demi-journée)' : ''}\n`;
-          ics += "END:VEVENT\n";
-        });
-        ics += "END:VCALENDAR";
-        const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url; link.setAttribute('download', 'mes_conges.ics');
-        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    const exportToCalendar = () => {
+
+      const pad = (n) => String(n).padStart(2, '0');
+
+      const formatDate = (date) => {
+        return date.getFullYear() +
+          pad(date.getMonth() + 1) +
+          pad(date.getDate());
       };
+
+      const formatDateTime = (date) => {
+        return formatDate(date) + 'T' +
+          pad(date.getHours()) +
+          pad(date.getMinutes()) +
+          pad(date.getSeconds());
+      };
+
+      const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2)}@suivi-conges`;
+
+      let ics = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Suivi Conges//FR",
+        "CALSCALE:GREGORIAN"
+      ];
+
+      const leaves = Object.entries(data.calendarLeaves || {})
+        .map(([dateStr, leave]) => ({ dateStr, ...leave }))
+        .sort((a, b) => new Date(a.dateStr) - new Date(b.dateStr));
+
+      const getSlot = (l) => {
+        if (l.duration === 1) return { start: 8, end: 17 };
+
+        if (l.period === 'matin') return { start: 8, end: 12 };
+        if (l.period === 'aprem') return { start: 13, end: 17 };
+
+        return { start: 8, end: 17 };
+      };
+
+      const isNextDay = (d1, d2) => {
+        const a = new Date(d1);
+        a.setDate(a.getDate() + 1);
+        return a.toISOString().slice(0, 10) === d2;
+      };
+
+      const canMerge = (prev, next) => {
+
+        const prevSlot = getSlot(prev);
+        const nextSlot = getSlot(next);
+
+        if (prev.dateStr === next.dateStr) {
+          return prevSlot.end === nextSlot.start;
+        }
+
+        if (isNextDay(prev.dateStr, next.dateStr)) {
+          return prevSlot.end === 17 && nextSlot.start === 8;
+        }
+
+        return false;
+      };
+
+      const groups = [];
+      let current = [];
+
+      leaves.forEach(l => {
+
+        if (!current.length) {
+          current.push(l);
+          return;
+        }
+
+        const prev = current[current.length - 1];
+
+        if (canMerge(prev, l)) {
+          current.push(l);
+        } else {
+          groups.push(current);
+          current = [l];
+        }
+      });
+
+      if (current.length) groups.push(current);
+
+      // 👉 génération ICS
+      groups.forEach(group => {
+
+        const first = group[0];
+        const last = group[group.length - 1];
+
+        const startSlot = getSlot(first);
+        const endSlot = getSlot(last);
+
+        const startDate = new Date(first.dateStr);
+        const endDate = new Date(last.dateStr);
+
+        const summaryTypes = [...new Set(group.map(l =>
+          l.type.toUpperCase() === 'SENIORITY'
+            ? 'ANCIENNETÉ'
+            : l.type.toUpperCase()
+        ))];
+
+        const hasHalfDay = group.some(l => l.duration === 0.5);
+
+        // 🟢 CAS ALL-DAY = couvre des journées complètes
+        const isAllDay =
+          startSlot.start === 8 &&
+          endSlot.end === 17 &&
+          group.every(l =>
+            l.duration === 1 ||
+            (l.period === 'matin' || l.period === 'aprem')
+          );
+
+        ics.push("BEGIN:VEVENT");
+        ics.push(`UID:${uid()}`);
+        ics.push(`DTSTAMP:${formatDateTime(new Date())}Z`);
+
+        if (isAllDay) {
+          // 👉 ALL DAY (clé pour Outlook)
+          const start = formatDate(startDate);
+
+          const end = new Date(endDate);
+          end.setDate(end.getDate() + 1);
+
+          ics.push(`DTSTART;VALUE=DATE:${start}`);
+          ics.push(`DTEND;VALUE=DATE:${formatDate(end)}`);
+        } else {
+          // 👉 avec heures
+          startDate.setHours(startSlot.start, 0, 0);
+          endDate.setHours(endSlot.end, 0, 0);
+
+          ics.push(`DTSTART;TZID=Europe/Paris:${formatDateTime(startDate)}`);
+          ics.push(`DTEND;TZID=Europe/Paris:${formatDateTime(endDate)}`);
+        }
+
+        ics.push(`SUMMARY:Congés : ${summaryTypes.join(', ')}${hasHalfDay ? ' (incl. demi-journée)' : ''}`);
+        ics.push("STATUS:CONFIRMED");
+        ics.push("TRANSP:OPAQUE");
+        ics.push("END:VEVENT");
+      });
+
+      ics.push("END:VCALENDAR");
+
+      const blob = new Blob([ics.join("\n")], { type: 'text/calendar;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'mes_conges.ics');
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
 
       const resetCalendar = () => updateField('calendarLeaves', {});
 
@@ -251,7 +383,7 @@
       return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-safe-content overflow-x-hidden">
           {activeTab === 'calendar' && (
-            <header className={`bg-indigo-950 text-white pt-safe fixed top-0 left-0 right-0 z-50 rounded-b-[32px] shadow-2xl header-animate ${isScrolled ? 'pb-2' : 'pb-8'}`}>
+            <header className={`bg-indigo-950 text-white pt-safe fixed top-0 left-0 right-0 z-40 rounded-b-[32px] shadow-2xl header-animate ${isScrolled ? 'pb-2' : 'pb-8'}`}>
               <div className="px-5">
                 <div className={`flex justify-between items-center transition-all duration-500 ease-in-out ${isScrolled ? 'h-0 opacity-0 pointer-events-none overflow-hidden' : 'h-14 opacity-100 mb-2'}`}>
                   <div className="flex items-center gap-3">
@@ -437,6 +569,7 @@
     const CalendarWidget = ({ view, setView, leaves, setLeaves, vacations, zoneLabel, onExport, onReset }) => {
       const [type, setType] = useState('cp');
       const [dur, setDur] = useState(1);
+      const [pendingDate, setPendingDate] = useState(null);
       const touchStartX = useRef(null);
       const touchEndX = useRef(null);
 
@@ -466,10 +599,25 @@
         const dayOfWeek = new Date(y, m, d).getDay();
         if (dayOfWeek === 0 || dayOfWeek === 6 || holidays.includes(id)) return;
         if(navigator.vibrate) navigator.vibrate(8);
+        
         const next = { ...leaves };
-        if (next[id] && next[id].type === type) delete next[id];
-        else next[id] = { type, duration: dur };
-        setLeaves(next);
+        if (next[id] && next[id].type === type) {
+          delete next[id];
+          setLeaves(next);
+        } else {
+          if (dur === 0.5) {
+            setPendingDate(id);
+          } else {
+            next[id] = { type, duration: dur };
+            setLeaves(next);
+          }
+        }
+      };
+
+      const selectHalfDay = (period) => {
+        if (!pendingDate) return;
+        setLeaves({ ...leaves, [pendingDate]: { type, duration: 0.5, period } });
+        setPendingDate(null);
       };
 
       const typeConfigs = {
@@ -481,7 +629,7 @@
 
       return (
         <div 
-          className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700 transition-all touch-pan-y"
+          className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700 transition-all touch-pan-y relative"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
@@ -516,7 +664,12 @@
               
               return (
                 <button key={d} onClick={() => toggle(d)} className={`${btnClass} ${isToday && !l ? 'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-800' : ''}`}>
-                  {d}{l?.duration === 0.5 && <span className="absolute -top-1 -right-1 text-[8px] bg-white dark:bg-slate-800 text-indigo-600 rounded-full w-4 h-4 border border-indigo-100 flex items-center justify-center font-black">½</span>}
+                  {d}
+                  {l?.duration === 0.5 && (
+                    <span className="absolute -top-1 -right-1 text-[7px] bg-white dark:bg-slate-800 text-indigo-600 rounded-full w-4 h-4 border border-indigo-100 flex items-center justify-center font-black">
+                      {l.period === 'matin' ? 'M' : (l.period === 'aprem' ? 'A' : '½')}
+                    </span>
+                  )}
                   {isHoliday && <span className="text-[5px] absolute bottom-1 left-0 right-0 font-black tracking-tighter opacity-70">FÉRIÉ</span>}
                   {isVacation && !l && !isHoliday && <div className="absolute top-1.5 right-1.5 w-1 h-1 bg-indigo-300 dark:bg-indigo-500 rounded-full"></div>}
                 </button>
@@ -569,6 +722,19 @@
               </div>
             </div>
           </div>
+          
+          {pendingDate && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-6" onClick={() => setPendingDate(null)}>
+              <div className="bg-white dark:bg-slate-800 rounded-[32px] w-full max-w-xs p-6 shadow-2xl space-y-4 snappy-transition" onClick={e => e.stopPropagation()}>
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-widest text-center">Quelle période ?</h3>
+                <div className="grid gap-3">
+                  <button onClick={() => selectHalfDay('matin')} className="bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest snappy-transition">Matin</button>
+                  <button onClick={() => selectHalfDay('aprem')} className="bg-indigo-950 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest snappy-transition">Après-midi</button>
+                </div>
+                <button onClick={() => setPendingDate(null)} className="w-full py-2 text-slate-400 font-bold text-[10px] uppercase">Annuler</button>
+              </div>
+            </div>
+          )}
         </div>
       );
     };
