@@ -260,10 +260,19 @@
         return { start: 8, end: 17 };
       };
 
-      const isNextDay = (d1, d2) => {
-        const a = new Date(d1);
-        a.setDate(a.getDate() + 1);
-        return a.toISOString().slice(0, 10) === d2;
+      // 🔥 skip week-end
+      const isNextWorkingDay = (d1, d2) => {
+        let date = new Date(d1);
+
+        while (true) {
+          date.setDate(date.getDate() + 1);
+
+          const day = date.getDay(); // 0 = dim, 6 = sam
+
+          if (day === 0 || day === 6) continue;
+
+          return date.toISOString().slice(0, 10) === d2;
+        }
       };
 
       const canMerge = (prev, next) => {
@@ -271,11 +280,13 @@
         const prevSlot = getSlot(prev);
         const nextSlot = getSlot(next);
 
+        // même jour
         if (prev.dateStr === next.dateStr) {
           return prevSlot.end === nextSlot.start;
         }
 
-        if (isNextDay(prev.dateStr, next.dateStr)) {
+        // continuité jour ouvré (week-end ignoré)
+        if (isNextWorkingDay(prev.dateStr, next.dateStr)) {
           return prevSlot.end === 17 && nextSlot.start === 8;
         }
 
@@ -324,13 +335,14 @@
 
         const hasHalfDay = group.some(l => l.duration === 0.5);
 
-        // 🟢 CAS ALL-DAY = couvre des journées complètes
+        // 🟢 ALL DAY si couvre des journées complètes
         const isAllDay =
           startSlot.start === 8 &&
           endSlot.end === 17 &&
           group.every(l =>
             l.duration === 1 ||
-            (l.period === 'matin' || l.period === 'aprem')
+            l.period === 'matin' ||
+            l.period === 'aprem'
           );
 
         ics.push("BEGIN:VEVENT");
@@ -338,7 +350,6 @@
         ics.push(`DTSTAMP:${formatDateTime(new Date())}Z`);
 
         if (isAllDay) {
-          // 👉 ALL DAY (clé pour Outlook)
           const start = formatDate(startDate);
 
           const end = new Date(endDate);
@@ -347,7 +358,6 @@
           ics.push(`DTSTART;VALUE=DATE:${start}`);
           ics.push(`DTEND;VALUE=DATE:${formatDate(end)}`);
         } else {
-          // 👉 avec heures
           startDate.setHours(startSlot.start, 0, 0);
           endDate.setHours(endSlot.end, 0, 0);
 
@@ -383,7 +393,7 @@
       return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-safe-content overflow-x-hidden">
           {activeTab === 'calendar' && (
-            <header className={`bg-indigo-950 text-white pt-safe fixed top-0 left-0 right-0 z-40 rounded-b-[32px] shadow-2xl header-animate ${isScrolled ? 'pb-2' : 'pb-8'}`}>
+            <header className={`bg-indigo-950 text-white pt-safe fixed top-0 left-0 right-0 z-40 rounded-b-[38px] shadow-2xl header-animate ${isScrolled ? 'pb-2 bg-[#1e1b4b]/85 backdrop-blur-xl' : 'pb-8 bg-indigo-950'}`}>
               <div className="px-5">
                 <div className={`flex justify-between items-center transition-all duration-500 ease-in-out ${isScrolled ? 'h-0 opacity-0 pointer-events-none overflow-hidden' : 'h-14 opacity-100 mb-2'}`}>
                   <div className="flex items-center gap-3">
@@ -410,7 +420,7 @@
           <main className={`p-2 space-y-6 max-w-md mx-auto -mt-6 ${activeTab === 'calendar' && 'pt-[14.25rem]'}`}>
             {activeTab === 'calendar' ? (
               <div key="view-calendar" className="view-transition-enter flex flex-col gap-6">
-                <div className="bg-white dark:bg-slate-800 rounded-[32px] p-5 shadow-lg border border-slate-100 dark:border-slate-700 flex justify-between items-center transition-all hover:shadow-xl mt-4">
+                <div className="bg-white dark:bg-slate-800 rounded-[38px] p-5 shadow-lg border border-slate-100 dark:border-slate-700 flex justify-between items-center transition-all hover:shadow-xl mt-4">
                   <div>
                     <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Ancienneté</h3>
                     <div className="text-2xl font-black text-slate-800 dark:text-slate-100">{calcs.sen.bal.toFixed(1)} <span className="text-sm font-normal text-slate-300">jours</span></div>
@@ -426,7 +436,7 @@
                   </div>
                 </div>
 
-                <div className="bg-slate-900 rounded-[32px] p-6 shadow-2xl text-white border border-slate-800 transition-all hover:shadow-indigo-500/10">
+                <div className="bg-slate-900 rounded-[38px] p-6 shadow-2xl text-white border border-slate-800 transition-all hover:shadow-indigo-500/10">
                   <div className="flex justify-between items-baseline mb-6">
                     <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em]">Solde CET</h3>
                     <div className="text-4xl font-black text-indigo-400 tracking-tighter">{calcs.cet.bal.toFixed(1)} <span className="text-base font-normal text-white/40">j.</span></div>
@@ -489,7 +499,7 @@
         <div className="space-y-6 py-2 pb-20">
           <section>
             <h2 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-4 mt-6 px-2">Affichage</h2>
-            <div className="bg-white dark:bg-slate-800 rounded-[32px] p-6 shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
+            <div className="bg-white dark:bg-slate-800 rounded-[38px] p-6 shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase mb-4 tracking-tighter">Thème de l'application</label>
                 <div className="grid grid-cols-3 gap-3">
@@ -503,7 +513,7 @@
 
           <section>
             <h2 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-4 px-2">Scolarité</h2>
-            <div className="bg-white dark:bg-slate-800 rounded-[32px] p-6 shadow-sm border border-slate-100 dark:border-slate-700 space-y-5">
+            <div className="bg-white dark:bg-slate-800 rounded-[38px] p-6 shadow-sm border border-slate-100 dark:border-slate-700 space-y-5">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase mb-4 tracking-tighter">Zone sélectionnée</label>
                 <div className="grid grid-cols-3 gap-3 mb-5">
@@ -523,7 +533,7 @@
 
           <section>
             <h2 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-4 px-2">Acquisition Mensuelle</h2>
-            <div className="bg-white dark:bg-slate-800 rounded-[32px] p-6 shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
+            <div className="bg-white dark:bg-slate-800 rounded-[38px] p-6 shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-xs font-black text-slate-700 dark:text-slate-200">CP</span>
                 <input type="number" step="0.1" value={settings.rateCP ?? ""} onChange={e => updateSetting('rateCP', e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-20 bg-slate-50 dark:bg-slate-700 text-right p-4 rounded-2xl font-black text-indigo-600 border-none outline-none focus:ring-2 focus:ring-indigo-500 snappy-transition" />
@@ -581,6 +591,9 @@
       const today = new Date();
       const todayId = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
 
+      const isCurrentMonth = y === today.getFullYear() && m === today.getMonth();
+      const goToToday = useCallback(() => setView(new Date()), [setView]);
+
       const prevMonth = useCallback(() => setView(new Date(y, m-1, 1)), [y, m, setView]);
       const nextMonth = useCallback(() => setView(new Date(y, m+1, 1)), [y, m, setView]);
 
@@ -636,7 +649,17 @@
         >
           <div className="flex justify-between items-center mb-6 px-2">
              <button onClick={prevMonth} className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl text-slate-400 hover:text-indigo-600 snappy-transition shadow-sm"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg></button>
-             <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-800 dark:text-slate-100">{months[m]} {y}</span>
+             <div className="flex items-center justify-center">
+               <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-800 dark:text-slate-100">{months[m]} {y}</span>
+               <div className={`transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] overflow-hidden origin-left flex items-center ${isCurrentMonth ? 'max-w-0 opacity-0 ml-0 scale-50 pointer-events-none' : 'max-w-[120px] opacity-100 ml-8 scale-100'}`}>
+                 <button 
+                   onClick={goToToday}
+                   className="px-3 py-2 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest border border-indigo-200 dark:border-indigo-500/30 shadow-sm hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
+                 >
+                   {today.getDate()}
+                 </button>
+               </div>
+             </div>
              <button onClick={nextMonth} className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl text-slate-400 hover:text-indigo-600 snappy-transition shadow-sm"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg></button>
           </div>
 
@@ -725,7 +748,7 @@
           
           {pendingDate && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-6" onClick={() => setPendingDate(null)}>
-              <div className="bg-white dark:bg-slate-800 rounded-[32px] w-full max-w-xs p-6 shadow-2xl space-y-4 snappy-transition" onClick={e => e.stopPropagation()}>
+              <div className="bg-white dark:bg-slate-800 rounded-[38px] w-full max-w-xs p-6 shadow-2xl space-y-4 snappy-transition" onClick={e => e.stopPropagation()}>
                 <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-widest text-center">Quelle période ?</h3>
                 <div className="grid gap-3">
                   <button onClick={() => selectHalfDay('matin')} className="bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest snappy-transition">Matin</button>
