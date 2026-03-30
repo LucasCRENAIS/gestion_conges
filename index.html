@@ -387,8 +387,6 @@
             );
 
           ics.push("BEGIN:VEVENT");
-          ics.push(`UID:${uid()}`);
-          ics.push(`DTSTAMP:${toUTC(new Date())}`);
 
           if (isAllDay) {
             const start = formatDate(startDate);
