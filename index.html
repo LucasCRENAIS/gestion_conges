@@ -251,189 +251,176 @@
         };
       }, [data, totals]);
 
-    const exportToCalendar = () => {
-    
-      const pad = (n) => String(n).padStart(2, '0');
-    
-      const formatDate = (date) => {
-        return date.getFullYear() +
-          pad(date.getMonth() + 1) +
-          pad(date.getDate());
-      };
-    
-      const formatUTC = (date) => {
-        return date.getUTCFullYear() +
-          pad(date.getUTCMonth() + 1) +
-          pad(date.getUTCDate()) + 'T' +
-          pad(date.getUTCHours()) +
-          pad(date.getUTCMinutes()) +
-          pad(date.getUTCSeconds()) + 'Z';
-      };
-    
-      const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2)}@suivi-conges`;
-    
-      const foldLine = (line) => {
-        return line.length > 70
-          ? line.match(/.{1,70}/g).join("\n ")
-          : line;
-      };
-    
-      let ics = [
-        "BEGIN:VCALENDAR",
-        "VERSION:2.0",
-        "PRODID:-//Suivi Conges//FR",
-        "CALSCALE:GREGORIAN"
-      ];
-    
-      const leaves = Object.entries(data.calendarLeaves || {})
-        .map(([dateStr, leave]) => ({ dateStr, ...leave }))
-        .sort((a, b) => new Date(a.dateStr) - new Date(b.dateStr));
-    
-      const getSlot = (l) => {
-        if (l.duration === 1) return { start: 8, end: 17 };
-    
-        if (l.period === 'matin') return { start: 8, end: 12 };
-        if (l.period === 'aprem') return { start: 13, end: 17 };
-    
-        return { start: 8, end: 17 };
-      };
-    
-      const isNextWorkingDay = (d1, d2) => {
-        let date = new Date(d1);
-    
-        while (true) {
-          date.setDate(date.getDate() + 1);
-    
-          const day = date.getDay();
-          if (day === 0 || day === 6) continue;
-    
-          return date.toISOString().slice(0, 10) === d2;
-        }
-      };
-    
-      const canMerge = (prev, next) => {
-    
-        const prevSlot = getSlot(prev);
-        const nextSlot = getSlot(next);
-    
-        if (prev.dateStr === next.dateStr) {
-          return prevSlot.end === nextSlot.start;
-        }
-    
-        if (isNextWorkingDay(prev.dateStr, next.dateStr)) {
-          return prevSlot.end === 17 && nextSlot.start === 8;
-        }
-    
-        return false;
-      };
-    
-      const groups = [];
-      let current = [];
-    
-      leaves.forEach(l => {
-    
-        if (!current.length) {
-          current.push(l);
-          return;
-        }
-    
-        const prev = current[current.length - 1];
-    
-        if (canMerge(prev, l)) {
-          current.push(l);
-        } else {
-          groups.push(current);
-          current = [l];
-        }
-      });
-    
-      if (current.length) groups.push(current);
-    
-      // 👉 génération ICS
-      groups.forEach(group => {
-    
-        const first = group[0];
-        const last = group[group.length - 1];
-    
-        const startSlot = getSlot(first);
-        const endSlot = getSlot(last);
-    
-        const startDate = new Date(first.dateStr);
-        const endDate = new Date(last.dateStr);
-    
-        const summaryTypes = [...new Set(group.map(l =>
-          l.type.toUpperCase() === 'SENIORITY'
-            ? 'ANCIENNETÉ'
-            : l.type.toUpperCase()
-        ))];
-    
-        const hasHalfDay = group.some(l => l.duration === 0.5);
-    
-        const summary = foldLine(
-          `SUMMARY:Congés : ${summaryTypes.join(', ')}${hasHalfDay ? ' (incl. demi-journée)' : ''}`
-        );
-    
-        ics.push("BEGIN:VEVENT");
-        ics.push(`UID:${uid()}`);
-        ics.push(`DTSTAMP:${formatUTC(new Date())}`);
-    
-        const isAllDay =
-          startSlot.start === 8 &&
-          endSlot.end === 17 &&
-          group.every(l =>
-            l.duration === 1 ||
-            l.period === 'matin' ||
-            l.period === 'aprem'
+      const exportToCalendar = () => {
+
+        const pad = (n) => String(n).padStart(2, '0');
+
+        const formatDate = (date) => {
+          return date.getFullYear() +
+            pad(date.getMonth() + 1) +
+            pad(date.getDate());
+        };
+
+        const formatUTC = (date) => {
+          return date.getUTCFullYear() +
+            pad(date.getUTCMonth() + 1) +
+            pad(date.getUTCDate()) + 'T' +
+            pad(date.getUTCHours()) +
+            pad(date.getUTCMinutes()) +
+            pad(date.getUTCSeconds()) + 'Z';
+        };
+
+        const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2)}@suivi-conges`;
+
+        const foldLine = (line) => {
+          return line.length > 70
+            ? line.match(/.{1,70}/g).join("\n ")
+            : line;
+        };
+
+        let ics = [
+          "BEGIN:VCALENDAR",
+          "VERSION:2.0",
+          "PRODID:-//Suivi Conges//FR",
+          "CALSCALE:GREGORIAN"
+        ];
+
+        const leaves = Object.entries(data.calendarLeaves || {})
+          .map(([dateStr, leave]) => ({ dateStr, ...leave }))
+          .sort((a, b) => new Date(a.dateStr) - new Date(b.dateStr));
+
+        const getSlot = (l) => {
+          if (l.duration === 1) return { start: 8, end: 17 };
+
+          if (l.period === 'matin') return { start: 8, end: 12 };
+          if (l.period === 'aprem') return { start: 13, end: 17 };
+
+          return { start: 8, end: 17 };
+        };
+
+        const isNextWorkingDay = (d1, d2) => {
+          let date = new Date(d1);
+
+          while (true) {
+            date.setDate(date.getDate() + 1);
+
+            const day = date.getDay();
+            if (day === 0 || day === 6) continue;
+
+            return date.toISOString().slice(0, 10) === d2;
+          }
+        };
+
+        const canMerge = (prev, next) => {
+
+          const prevSlot = getSlot(prev);
+          const nextSlot = getSlot(next);
+
+          if (prev.dateStr === next.dateStr) {
+            return prevSlot.end === nextSlot.start;
+          }
+
+          if (isNextWorkingDay(prev.dateStr, next.dateStr)) {
+            return prevSlot.end === 17 && nextSlot.start === 8;
+          }
+
+          return false;
+        };
+
+        const groups = [];
+        let current = [];
+
+        leaves.forEach(l => {
+
+          if (!current.length) {
+            current.push(l);
+            return;
+          }
+
+          const prev = current[current.length - 1];
+
+          if (canMerge(prev, l)) {
+            current.push(l);
+          } else {
+            groups.push(current);
+            current = [l];
+          }
+        });
+
+        if (current.length) groups.push(current);
+
+        // 👉 génération ICS
+        groups.forEach(group => {
+
+          const first = group[0];
+          const last = group[group.length - 1];
+
+          const startSlot = getSlot(first);
+          const endSlot = getSlot(last);
+
+          const startDate = new Date(first.dateStr);
+          const endDate = new Date(last.dateStr);
+
+          const summaryTypes = [...new Set(group.map(l =>
+            l.type.toUpperCase() === 'SENIORITY'
+              ? 'ANCIENNETÉ'
+              : l.type.toUpperCase()
+          ))];
+
+          const hasHalfDay = group.some(l => l.duration === 0.5);
+
+          const summary = foldLine(
+            `SUMMARY:Congés : ${summaryTypes.join(', ')}${hasHalfDay ? ' (incl. demi-journée)' : ''}`
           );
-    
-        if (isAllDay) {
-          const start = formatDate(startDate);
-    
-          const end = new Date(endDate);
-          end.setDate(end.getDate() + 1);
-    
-          ics.push(`DTSTART;VALUE=DATE:${start}`);
-          ics.push(`DTEND;VALUE=DATE:${formatDate(end)}`);
-        } else {
-          startDate.setHours(startSlot.start, 0, 0);
-          endDate.setHours(endSlot.end, 0, 0);
-    
-          ics.push(`DTSTART:${formatUTC(startDate)}`);
-          ics.push(`DTEND:${formatUTC(endDate)}`);
-        }
-    
-        ics.push(summary);
-        ics.push("STATUS:CONFIRMED");
-        ics.push("TRANSP:OPAQUE");
-        ics.push("END:VEVENT");
-      });
-    
-      ics.push("END:VCALENDAR");
-    
-      const blob = new Blob([ics.join("\n")], { type: 'text/calendar;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-    
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'mes_conges.ics');
-    
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    };
-      ics.push("END:VCALENDAR");
 
-      const blob = new Blob([ics.join("\n")], { type: 'text/calendar;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
+          ics.push("BEGIN:VEVENT");
+          ics.push(`UID:${uid()}`);
+          ics.push(`DTSTAMP:${formatUTC(new Date())}`);
 
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'mes_conges.ics');
+          const isAllDay =
+            startSlot.start === 8 &&
+            endSlot.end === 17 &&
+            group.every(l =>
+              l.duration === 1 ||
+              l.period === 'matin' ||
+              l.period === 'aprem'
+            );
 
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    };
+          if (isAllDay) {
+            const start = formatDate(startDate);
+
+            const end = new Date(endDate);
+            end.setDate(end.getDate() + 1);
+
+            ics.push(`DTSTART;VALUE=DATE:${start}`);
+            ics.push(`DTEND;VALUE=DATE:${formatDate(end)}`);
+          } else {
+            startDate.setHours(startSlot.start, 0, 0);
+            endDate.setHours(endSlot.end, 0, 0);
+
+            ics.push(`DTSTART:${formatUTC(startDate)}`);
+            ics.push(`DTEND:${formatUTC(endDate)}`);
+          }
+
+          ics.push(summary);
+          ics.push("STATUS:CONFIRMED");
+          ics.push("TRANSP:OPAQUE");
+          ics.push("END:VEVENT");
+        });
+
+        ics.push("END:VCALENDAR");
+
+        const blob = new Blob([ics.join("\n")], { type: 'text/calendar;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'mes_conges.ics');
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
 
       const resetCalendar = () => updateField('calendarLeaves', {});
 
