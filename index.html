@@ -261,22 +261,14 @@
             pad(date.getDate());
         };
 
-        const formatUTC = (date) => {
-          return date.getUTCFullYear() +
-            pad(date.getUTCMonth() + 1) +
-            pad(date.getUTCDate()) + 'T' +
-            pad(date.getUTCHours()) +
-            pad(date.getUTCMinutes()) +
-            pad(date.getUTCSeconds()) + 'Z';
+        const formatDateTime = (date) => {
+          return formatDate(date) + 'T' +
+            pad(date.getHours()) +
+            pad(date.getMinutes()) +
+            pad(date.getSeconds());
         };
 
         const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2)}@suivi-conges`;
-
-        const foldLine = (line) => {
-          return line.length > 70
-            ? line.match(/.{1,70}/g).join("\n ")
-            : line;
-        };
 
         let ics = [
           "BEGIN:VCALENDAR",
@@ -298,17 +290,10 @@
           return { start: 8, end: 17 };
         };
 
-        const isNextWorkingDay = (d1, d2) => {
-          let date = new Date(d1);
-
-          while (true) {
-            date.setDate(date.getDate() + 1);
-
-            const day = date.getDay();
-            if (day === 0 || day === 6) continue;
-
-            return date.toISOString().slice(0, 10) === d2;
-          }
+        const isNextDay = (d1, d2) => {
+          const a = new Date(d1);
+          a.setDate(a.getDate() + 1);
+          return a.toISOString().slice(0, 10) === d2;
         };
 
         const canMerge = (prev, next) => {
@@ -320,7 +305,7 @@
             return prevSlot.end === nextSlot.start;
           }
 
-          if (isNextWorkingDay(prev.dateStr, next.dateStr)) {
+          if (isNextDay(prev.dateStr, next.dateStr)) {
             return prevSlot.end === 17 && nextSlot.start === 8;
           }
 
@@ -369,24 +354,21 @@
 
           const hasHalfDay = group.some(l => l.duration === 0.5);
 
-          const summary = foldLine(
-            `SUMMARY:Congés : ${summaryTypes.join(', ')}${hasHalfDay ? ' (incl. demi-journée)' : ''}`
-          );
-
-          ics.push("BEGIN:VEVENT");
-          ics.push(`UID:${uid()}`);
-          ics.push(`DTSTAMP:${formatUTC(new Date())}`);
-
+          // 🟢 CAS ALL-DAY = couvre des journées complètes
           const isAllDay =
             startSlot.start === 8 &&
             endSlot.end === 17 &&
             group.every(l =>
               l.duration === 1 ||
-              l.period === 'matin' ||
-              l.period === 'aprem'
+              (l.period === 'matin' || l.period === 'aprem')
             );
 
+          ics.push("BEGIN:VEVENT");
+          ics.push(`UID:${uid()}`);
+          ics.push(`DTSTAMP:${formatDateTime(new Date())}Z`);
+
           if (isAllDay) {
+            // 👉 ALL DAY (clé pour Outlook)
             const start = formatDate(startDate);
 
             const end = new Date(endDate);
@@ -395,14 +377,15 @@
             ics.push(`DTSTART;VALUE=DATE:${start}`);
             ics.push(`DTEND;VALUE=DATE:${formatDate(end)}`);
           } else {
+            // 👉 avec heures
             startDate.setHours(startSlot.start, 0, 0);
             endDate.setHours(endSlot.end, 0, 0);
 
-            ics.push(`DTSTART:${formatUTC(startDate)}`);
-            ics.push(`DTEND:${formatUTC(endDate)}`);
+            ics.push(`DTSTART;TZID=Europe/Paris:${formatDateTime(startDate)}`);
+            ics.push(`DTEND;TZID=Europe/Paris:${formatDateTime(endDate)}`);
           }
 
-          ics.push(summary);
+          ics.push(`SUMMARY:Congés : ${summaryTypes.join(', ')}${hasHalfDay ? ' (incl. demi-journée)' : ''}`);
           ics.push("STATUS:CONFIRMED");
           ics.push("TRANSP:OPAQUE");
           ics.push("END:VEVENT");
