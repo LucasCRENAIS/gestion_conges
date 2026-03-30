@@ -9,7 +9,7 @@
   <meta name="apple-touch-fullscreen" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Congés">
-  <meta name="theme-color" content="#1e1b4b">
+  <meta id="theme-color-meta" name="theme-color" content="#1e1b4b">
   
   <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3652/3652191.png">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3652/3652191.png">
@@ -142,7 +142,15 @@
       }, [data.settings?.theme]);
 
       useEffect(() => {
-        const handleScroll = () => setIsScrolled(window.scrollY > 30);
+        const handleScroll = () => {
+          const scrolled = window.scrollY > 30;
+          setIsScrolled(scrolled);
+          // Update theme-color for Android system bar
+          const meta = document.getElementById('theme-color-meta');
+          if (meta) {
+            meta.setAttribute('content', scrolled ? '#1a1841' : '#1e1b4b');
+          }
+        };
         window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
       }, []);
