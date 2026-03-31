@@ -113,6 +113,7 @@
       const [syncStatus, setSyncStatus] = useState('synced');
       const [activeTab, setActiveTab] = useState('calendar'); 
       const [isScrolled, setIsScrolled] = useState(false);
+      const [scrollProgress, setScrollProgress] = useState(0);
 
       const [data, setData] = useState(() => {
         const saved = localStorage.getItem('conges-toulouse-data-v3');
@@ -158,7 +159,7 @@
         let ticking = false;
 
         const update = () => {
-          const maxScroll = 160; // 👉 un peu plus long = plus progressif
+          const maxScroll = 180; // 👉 un peu plus long = plus progressif
           const scroll = Math.min(window.scrollY, maxScroll);
 
           let progress = scroll / maxScroll;
@@ -167,6 +168,7 @@
   
           document.documentElement.style.setProperty('--progress', progress);
           setIsScrolled(progress);
+          setScrollProgress(progress);
           ticking = false;
         };
 
@@ -430,41 +432,96 @@
 
       const adj = data.adjustments || { cp: 0, rtt: 0, seniority: 0, cet: 0 };
       const toCet = data.toCet || { cp: 0, rtt: 0 };
+      const progress = scrollProgress;
 
       return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-safe-content overflow-x-hidden">
           {activeTab === 'calendar' && (
-            <header
-              className="bg-indigo-950 text-white pt-safe fixed top-0 left-0 right-0 z-40 rounded-b-[38px] shadow-2xl header-animate"
-              style={{ paddingBottom: `${32 - 24 * isScrolled}px` }}
-            >
+
+            <header className="bg-indigo-950 text-white pt-safe fixed top-0 left-0 right-0 z-40 rounded-b-[38px] shadow-2xl header-animate">
               <div className="px-5">
-                <div className={`flex justify-between items-center transition-all duration-500 ease-in-out ${isScrolled ? 'h-0 opacity-0 pointer-events-none overflow-hidden' : 'h-14 opacity-100 mb-2'}`}>
+
+                {/* 🔹 TOP BAR (titre + date) */}
+                <div
+                  className="flex justify-between items-center overflow-hidden transition-all duration-300"
+                  style={{
+                    maxHeight: `${56 * (1 - progress)}px`,
+                    opacity: 1 - progress,
+                    marginBottom: `${8 * (1 - progress)}px`
+                  }}
+                >
                   <div className="flex items-center gap-3">
                     <h1 className="text-xl font-black tracking-tight">Suivi Congés</h1>
                     <div className={`w-2 h-2 rounded-full ${syncStatus === 'synced' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`}></div>
                   </div>
+
                   <div className="text-right">
-                    <input type="date" value={data.targetDate || ""} onChange={(e) => updateField('targetDate', e.target.value)} className="bg-white/10 text-white rounded-xl border-none p-2 text-[10px] font-bold outline-none" />
+                    <input
+                      type="date"
+                      value={data.targetDate || ""}
+                      onChange={(e) => updateField('targetDate', e.target.value)}
+                      className="bg-white/10 text-white rounded-xl border-none p-2 text-[10px] font-bold outline-none"
+                    />
                   </div>
                 </div>
 
-                <div className={`grid gap-2 transition-all duration-500 ease-in-out ${isScrolled ? 'grid-cols-3 pb-1' : 'grid-cols-2'}`}>
-                  {/* Tuile CP avec fond Indigo au scroll */}
-                  <div className={`transition-colors duration-500 rounded-xl ${isScrolled ? 'bg-indigo-600' : ''}`}>
-                    <HeaderStat label="CP" val={calcs.cp.bal} isScrolled={isScrolled} adj={data.adjustments?.cp} onUpdate={v => updateNested('adjustments', 'cp', v)} />
-                  </div>
-                  
-                  {/* Tuile RTT avec fond Emerald au scroll */}
-                  <div className={`transition-colors duration-500 rounded-xl ${isScrolled ? 'bg-emerald-500' : ''}`}>
-                    <HeaderStat label="RTT" val={calcs.rtt.bal} isScrolled={isScrolled} adj={data.adjustments?.rtt} onUpdate={v => updateNested('adjustments', 'rtt', v)} />
+                {/* 🔹 GRID FLUIDE */}
+                <div
+                  className="grid gap-2 transition-all duration-300"
+                  style={{
+                    gridTemplateColumns: `repeat(${2 + Math.round(progress)}, 1fr)`
+                  }}
+                >
+
+                  {/* CP */}
+                  <div
+                    className="rounded-xl transition-all duration-300"
+                    style={{
+                      backgroundColor: `rgba(79, 70, 229, ${progress})`
+                    }}
+                  >
+                    <HeaderStat
+                      label="CP"
+                      val={calcs.cp.bal}
+                      isScrolled={progress > 0.5}
+                      adj={data.adjustments?.cp}
+                      onUpdate={v => updateNested('adjustments', 'cp', v)}
+                    />
                   </div>
 
-                  {!!isScrolled && (
-                    <div className="bg-white/5 rounded-xl border border-white/10 flex flex-col items-center justify-center transition-all duration-500">
-                      <input type="date" value={data.targetDate || ""} onChange={(e) => updateField('targetDate', e.target.value)} className="bg-transparent text-white text-[11px] font-black outline-none w-full text-center" />
-                    </div>
-                  )}
+                  {/* RTT */}
+                  <div
+                    className="rounded-xl transition-all duration-300"
+                    style={{
+                      backgroundColor: `rgba(16, 185, 129, ${progress})`
+                    }}
+                  >
+                    <HeaderStat
+                      label="RTT"
+                      val={calcs.rtt.bal}
+                      isScrolled={progress > 0.5}
+                      adj={data.adjustments?.rtt}
+                      onUpdate={v => updateNested('adjustments', 'rtt', v)}
+                    />
+                  </div>
+
+                  {/* 3e tuile (date) */}
+                  <div
+                    className="bg-white/5 rounded-xl border border-white/10 flex flex-col items-center justify-center transition-all duration-300 overflow-hidden"
+                    style={{
+                      opacity: progress,
+                      transform: `scale(${0.95 + progress * 0.05})`,
+                      maxHeight: `${80 * progress}px`
+                    }}
+                  >
+                    <input
+                      type="date"
+                      value={data.targetDate || ""}
+                      onChange={(e) => updateField('targetDate', e.target.value)}
+                      className="bg-transparent text-white text-base font-black outline-none w-full text-center"
+                    />
+                  </div>
+
                 </div>
               </div>
             </header>
