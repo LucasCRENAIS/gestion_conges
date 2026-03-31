@@ -53,11 +53,11 @@
       --progress: 0;
 
       padding: calc(16px - 6px * var(--progress));
-      border-radius: calc(16px + 12px * var(--progress));
+      border-radius-bottom: calc(16px + 12px * var(--progress));
       box-shadow: 0 calc(2px + 8px * var(--progress)) calc(6px + 14px * var(--progress)) rgba(0,0,0,calc(0.04 + 0.06 * var(--progress)));
       background-color: rgba(255, 255, 255, calc(0.6 + 0.4 * var(--progress)));
 
-      will-change: padding, border-radius, box-shadow, background-color;
+      will-change: padding, border-radius-bottom, box-shadow, background-color;
     }
     
     @media (hover: hover) {
