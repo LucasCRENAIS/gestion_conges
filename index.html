@@ -516,12 +516,24 @@
                           pointerEvents: progress === 0 ? 'none' : 'auto'
                         }}
                       >
-                    <input
-                      type="date"
-                      value={data.targetDate || ""}
-                      onChange={(e) => updateField('targetDate', e.target.value)}
-                      className="bg-transparent text-white text-base font-black outline-none w-full text-center"
-                    />
+                      <input
+                        type="date"
+                        value={data.targetDate || ""}
+                        onChange={(e) => updateField('targetDate', e.target.value)}
+                        className="
+                          w-full
+                          text-center
+                          appearance-none
+                          [-webkit-appearance:none]
+                          text-white
+                          bg-transparent
+                          font-black
+                          outline-none
+                        "
+                        style={{
+                          textAlignLast: 'center',
+                        }}
+                      />
                   </div>
 
                 </div>
