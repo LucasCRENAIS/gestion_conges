@@ -678,7 +678,7 @@
 
       return (
         <div 
-          className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700 transition-all touch-pan-y relative"
+          className="bg-white dark:bg-slate-800 rounded-[40px] p-5 shadow-xl border border-slate-100 dark:border-slate-700 transition-all touch-pan-y relative"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
@@ -687,11 +687,10 @@
              <button onClick={prevMonth} className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl text-slate-400 hover:text-indigo-600 snappy-transition shadow-sm"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg></button>
              <div className="flex items-center justify-center">
                <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-800 dark:text-slate-100">{months[m]} {y}</span>
-               <div className={`transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] overflow-hidden origin-left flex items-center ${isCurrentMonth ? 'max-w-0 opacity-0 ml-0 scale-50 pointer-events-none' : 'max-w-[120px] opacity-100 ml-8 scale-100'}`}>
+               <div className={`transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] origin-left flex items-center ${isCurrentMonth ? 'max-w-0 opacity-0 ml-0 scale-50 pointer-events-none' : 'max-w-[120px] opacity-100 ml-8 scale-100'}`}>
                  <button 
                    onClick={goToToday}
-                   className="px-3 py-2 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest border border-indigo-200 dark:border-indigo-500/30 shadow-sm hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
-                 >
+                   className="w-10 h-10 aspect-square rounded-2xl bg-indigo-600 text-white text-xs font-black flex items-center justify-center active:scale-95 transition-all shadow-[0_2px_6px_rgba(0,0,0,0.2),0_8px_20px_rgba(0,0,0,0.12)]">
                    {today.getDate()}
                  </button>
                </div>
