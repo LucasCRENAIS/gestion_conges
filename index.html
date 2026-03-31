@@ -469,10 +469,10 @@
                 <div
                   className="grid gap-2 transition-all duration-300"
                   style={{
-                    gridTemplateColumns: 'repeat(3, 1fr)'
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gridAutoRows: 'auto'
                   }}
                 >
-
                   {/* CP */}
                   <div
                     className="rounded-xl transition-all duration-300"
@@ -506,20 +506,21 @@
                   </div>
 
                   {/* 3e tuile (date) */}
-                    <div
-                      className="bg-white/5 rounded-xl border border-white/10 flex flex-col items-center justify-center transition-all duration-300 overflow-hidden"
-                      style={{
-                        opacity: progress,
-                        transform: `scale(${0.95 + progress * 0.05})`,
-                        maxHeight: `${80 * progress}px`,
-                        width: `${progress * 100}%`
-                      }}
-                    >
+                      <div
+                        className="bg-white/5 rounded-xl border border-white/10 flex flex-col items-center justify-center transition-all duration-300 overflow-hidden"
+                        style={{
+                          gridColumn: '1 / -1',
+                          opacity: progress,
+                          transform: `translateY(${(1 - progress) * 20}px) scale(${0.95 + progress * 0.05})`,
+                          maxHeight: `${120 * progress}px`,
+                          pointerEvents: progress === 0 ? 'none' : 'auto'
+                        }}
+                      >
                     <input
                       type="date"
                       value={data.targetDate || ""}
                       onChange={(e) => updateField('targetDate', e.target.value)}
-                      className="bg-transparent text-white text-sm font-black outline-none w-full text-center"
+                      className="bg-transparent text-white text-base font-black outline-none w-full text-center"
                     />
                   </div>
 
