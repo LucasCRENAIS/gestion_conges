@@ -158,10 +158,13 @@
         let ticking = false;
 
         const update = () => {
-          const maxScroll = 120;
+          const maxScroll = 160; // 👉 un peu plus long = plus progressif
           const scroll = Math.min(window.scrollY, maxScroll);
-          const progress = scroll / maxScroll;
 
+          let progress = scroll / maxScroll;
+
+          progress = Math.pow(progress, 2.2);
+  
           document.documentElement.style.setProperty('--progress', progress);
           setIsScrolled(progress);
           ticking = false;
@@ -447,8 +450,16 @@
                 </div>
 
                 <div className={`grid gap-2 transition-all duration-500 ease-in-out ${isScrolled ? 'grid-cols-3 pb-1' : 'grid-cols-2'}`}>
-                  <HeaderStat label="CP" val={calcs.cp.bal} isScrolled={isScrolled} adj={data.adjustments?.cp} onUpdate={v => updateNested('adjustments', 'cp', v)} />
-                  <HeaderStat label="RTT" val={calcs.rtt.bal} isScrolled={isScrolled} adj={data.adjustments?.rtt} onUpdate={v => updateNested('adjustments', 'rtt', v)} />
+                  {/* Tuile CP avec fond Indigo au scroll */}
+                  <div className={`transition-colors duration-500 rounded-xl ${isScrolled ? 'bg-indigo-600' : ''}`}>
+                    <HeaderStat label="CP" val={calcs.cp.bal} isScrolled={isScrolled} adj={data.adjustments?.cp} onUpdate={v => updateNested('adjustments', 'cp', v)} />
+                  </div>
+                  
+                  {/* Tuile RTT avec fond Emerald au scroll */}
+                  <div className={`transition-colors duration-500 rounded-xl ${isScrolled ? 'bg-emerald-500' : ''}`}>
+                    <HeaderStat label="RTT" val={calcs.rtt.bal} isScrolled={isScrolled} adj={data.adjustments?.rtt} onUpdate={v => updateNested('adjustments', 'rtt', v)} />
+                  </div>
+
                   {!!isScrolled && (
                     <div className="bg-white/5 rounded-xl border border-white/10 flex flex-col items-center justify-center transition-all duration-500">
                       <input type="date" value={data.targetDate || ""} onChange={(e) => updateField('targetDate', e.target.value)} className="bg-transparent text-white text-[11px] font-black outline-none w-full text-center" />
