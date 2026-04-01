@@ -88,6 +88,7 @@
   <div id="root"></div>
 
   <script type="text/babel">
+    const createPortal = ReactDOM.createPortal;
     const { useState, useMemo, useEffect, useCallback, useRef } = React;
 
     const getHolidays = (year) => {
@@ -868,18 +869,36 @@
             </div>
           </div>
           
-          {pendingDate && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-6" onClick={() => setPendingDate(null)}>
-              <div className="bg-white dark:bg-slate-800 rounded-[38px] w-full max-w-xs p-6 shadow-2xl space-y-4 snappy-transition" onClick={e => e.stopPropagation()}>
-                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-widest text-center">Quelle période ?</h3>
-                <div className="grid gap-3">
-                  <button onClick={() => selectHalfDay('matin')} className="bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest snappy-transition">Matin</button>
-                  <button onClick={() => selectHalfDay('aprem')} className="bg-indigo-950 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest snappy-transition">Après-midi</button>
-                </div>
-                <button onClick={() => setPendingDate(null)} className="w-full py-2 text-slate-400 font-bold text-[10px] uppercase">Annuler</button>
+        {pendingDate && createPortal(
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-6"
+            onClick={() => setPendingDate(null)}
+          >
+            <div
+              className="bg-white dark:bg-slate-800 rounded-[38px] w-full max-w-xs p-6 shadow-2xl space-y-4"
+              onClick={e => e.stopPropagation()}
+            >
+              <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-widest text-center">
+                Quelle période ?
+              </h3>
+
+              <div className="grid gap-3">
+                <button onClick={() => selectHalfDay('matin')} className="bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase text-xs">
+                  Matin
+                </button>
+
+                <button onClick={() => selectHalfDay('aprem')} className="bg-indigo-950 text-white py-4 rounded-2xl font-black uppercase text-xs">
+                  Après-midi
+                </button>
               </div>
+
+              <button onClick={() => setPendingDate(null)} className="w-full py-2 text-slate-400 font-bold text-[10px] uppercase">
+                Annuler
+              </button>
             </div>
-          )}
+          </div>,
+          document.body
+        )}
         </div>
       );
     };
