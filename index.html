@@ -53,11 +53,12 @@
       --progress: 0;
 
       padding: calc(16px - 6px * var(--progress));
-      border-radius-bottom: calc(16px + 12px * var(--progress));
+      border-bottom-left-radius: calc(16px + 12px * var(--progress));
+      border-bottom-right-radius: calc(16px + 12px * var(--progress));
       box-shadow: 0 calc(2px + 8px * var(--progress)) calc(6px + 14px * var(--progress)) rgba(0,0,0,calc(0.04 + 0.06 * var(--progress)));
       background-color: rgba(255, 255, 255, calc(0.6 + 0.4 * var(--progress)));
 
-      will-change: padding, border-radius-bottom, box-shadow, background-color;
+      will-change: padding, border-radius, box-shadow, background-color;
     }
     
     @media (hover: hover) {
@@ -160,7 +161,7 @@
         let ticking = false;
 
         const update = () => {
-          const maxScroll = 180; // 👉 un peu plus long = plus progressif
+          const maxScroll = 180; 
           const scroll = Math.min(window.scrollY, maxScroll);
 
           let progress = scroll / maxScroll;
@@ -260,7 +261,6 @@
       }, [data, totals]);
 
       const exportToCalendar = () => {
-
         const pad = (n) => String(n).padStart(2, '0');
 
         const formatDate = (date) => {
@@ -304,7 +304,6 @@
           return a.toISOString().slice(0, 10) === d2;
         };
 
-        // 🔥 NOUVEAU : ignore les week-ends
         const isNextWorkingDay = (d1, d2) => {
           const date = new Date(d1);
 
@@ -323,12 +322,10 @@
           const prevSlot = getSlot(prev);
           const nextSlot = getSlot(next);
 
-          // même jour
           if (prev.dateStr === next.dateStr) {
             return prevSlot.end === nextSlot.start;
           }
 
-          // 👉 continuité classique OU via week-end
           if (
             isNextDay(prev.dateStr, next.dateStr) ||
             isNextWorkingDay(prev.dateStr, next.dateStr)
@@ -361,7 +358,6 @@
 
         if (current.length) groups.push(current);
 
-        // 👉 génération ICS
         groups.forEach(group => {
 
           const first = group[0];
@@ -428,7 +424,6 @@
         link.click();
         document.body.removeChild(link);
       };
-
       const resetCalendar = () => updateField('calendarLeaves', {});
 
       const adj = data.adjustments || { cp: 0, rtt: 0, seniority: 0, cet: 0 };
@@ -438,7 +433,6 @@
       return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-safe-content overflow-x-hidden">
           {activeTab === 'calendar' && (
-
             <header className="bg-indigo-950 text-white pt-safe fixed top-0 left-0 right-0 z-40 rounded-b-[38px] shadow-2xl header-animate">
               <div className="px-3">
 
@@ -543,6 +537,7 @@
               </div>
             </header>
           )}
+          
           <main className={`p-2 space-y-6 max-w-md mx-auto -mt-6 ${activeTab === 'calendar' && 'pt-[14.25rem]'}`}>
             {activeTab === 'calendar' ? (
               <div key="view-calendar" className="view-transition-enter flex flex-col gap-6">
@@ -593,67 +588,105 @@
             )}
           </main>
 
-<nav className="fixed bottom-[calc(12px+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-50">
-  <div className="flex items-center gap-2 bg-slate-900/70 text-white rounded-full px-2 py-2 shadow-2xl backdrop-blur-xl border border-white/10">
-    
-    <TabButton
-      active={activeTab === 'calendar'}
-      label="Tableau"
-      icon="calendar"
-      onClick={() => setActiveTab('calendar')}
-    />
-
-    <TabButton
-      active={activeTab === 'settings'}
-      label="Options"
-      icon="settings"
-      onClick={() => setActiveTab('settings')}
-    />
-
-  </div>
-</nav>
+          <Nav activeTab={activeTab} setActiveTab={setActiveTab} />
         </div>
       );
     };
 
-  const TabButton = ({ active, label, icon, onClick }) => {
-    const icons = {
-      calendar: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-      ),
-      settings: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-      )
+const Nav = ({ activeTab, setActiveTab }) => {
+      const containerRef = useRef(null);
+      const buttonsRef = useRef({});
+
+      const [indicator, setIndicator] = useState({
+        width: 0,
+        left: 0
+      });
+
+      useEffect(() => {
+        const el = buttonsRef.current[activeTab];
+        if (!el) return;
+
+        const update = () => {
+          // Plus besoin de getBoundingClientRect, offsetLeft calcule 
+          // directement la position par rapport au conteneur parent.
+          setIndicator({
+            width: el.offsetWidth,
+            left: el.offsetLeft
+          });
+        };
+
+        requestAnimationFrame(update);
+      }, [activeTab]);
+
+
+      return (
+        <nav className="fixed bottom-[calc(12px+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-50">
+          <div
+            ref={containerRef}
+            className="relative flex items-center gap-2 bg-slate-900/70 text-white rounded-full px-2 py-2 shadow-2xl backdrop-blur-xl border border-white/10"
+          >
+
+            {/* INDICATEUR : Ajout de 'left-0' pour fixer le point de départ et simplification du transform */}
+            <div
+              className="absolute left-0 top-1 bottom-1 rounded-full bg-indigo-500/90 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+              style={{
+                width: indicator.width,
+                transform: `translateX(${indicator.left}px)`
+              }}
+            />
+
+            <TabButton
+              active={activeTab === 'calendar'}
+              label="Tableau"
+              icon="calendar"
+              onClick={() => setActiveTab('calendar')}
+              register={(el) => (buttonsRef.current['calendar'] = el)}
+            />
+
+            <TabButton
+              active={activeTab === 'settings'}
+              label="Options"
+              icon="settings"
+              onClick={() => setActiveTab('settings')}
+              register={(el) => (buttonsRef.current['settings'] = el)}
+            />
+
+          </div>
+        </nav>
+      );
     };
 
-    return (
-      <button
-        onClick={onClick}
-        className={`
-          flex items-center justify-center
-          transition-all duration-300 ease-out
-          active:scale-90
-          ${active
-            ? 'bg-indigo-600 text-white px-4 py-2 rounded-full shadow-lg'
-            : 'text-slate-400 hover:text-white p-2 rounded-full'}
-        `}
-      >
-        <div className="flex items-center gap-2">
+    const TabButton = ({ label, icon, onClick, register }) => {
+      const icons = {
+        calendar: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        ),
+        settings: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.940 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        )
+      };
+
+      return (
+        <button
+          ref={register}
+          onClick={onClick}
+          className="
+            relative z-10 flex items-center gap-2 px-4 py-2
+            rounded-full whitespace-nowrap
+            transition-transform duration-150
+            active:scale-95
+          "
+        >
           {icons[icon]}
-          {active && (
-            <span className="text-xs font-bold whitespace-nowrap">
-              {label}
-            </span>
-          )}
-        </div>
-      </button>
-    );
-  };
+          <span className="text-xs font-bold">{label}</span>
+        </button>
+      );
+    };
 
     const SettingsPage = ({ settings, updateSetting }) => {
       const zoneDescriptions = {
@@ -959,9 +992,8 @@
         theme_color: "#1e1b4b", 
         icons: [{ src: "https://cdn-icons-png.flaticon.com/512/3652/3652191.png", sizes: "512x512", type: "image/png" }] 
       };
-      const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-      const manifestUrl = URL.createObjectURL(manifestBlob);
-      document.getElementById('manifest-link').href = manifestUrl;
+      const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+      document.getElementById('manifest-link').href = URL.createObjectURL(manifestBlob);
     });
   </script>
 </body>
