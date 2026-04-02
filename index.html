@@ -996,6 +996,18 @@ const Nav = ({ activeTab, setActiveTab }) => {
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
 
+    // Inscription du Service Worker pour permettre l'installation PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        const swCode = `
+          self.addEventListener('install', (e) => self.skipWaiting());
+          self.addEventListener('fetch', (e) => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+        `;
+        const blob = new Blob([swCode], { type: 'text/javascript' });
+        navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(err => console.log("SW non enregistré", err));
+      });
+    }
+
     window.addEventListener('load', () => {
       const manifest = { 
         name: "Gestion Congés", 
