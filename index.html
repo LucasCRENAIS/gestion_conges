@@ -428,7 +428,6 @@
       };
 
       const resetCalendar = () => updateField('calendarLeaves', {});
-      const [currentDate, setCurrentDate] = useState(new Date());
 
       const handleApplySuggestion = useCallback((dates) => {
         let firstValidDate = null;
@@ -456,7 +455,7 @@
         setActiveTab('calendar');
 
         if (firstValidDate) {
-          setCurrentDate(firstValidDate);
+          setViewDate(firstValidDate);
         }
 
       }, []);
