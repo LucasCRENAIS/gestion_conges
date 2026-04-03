@@ -127,6 +127,7 @@
           initialCet: 0,
           calendarLeaves: {},
           vacations: [],
+          optimizationResults: null,
           lastAnnualUpdate: null,
           settings: {
             zone: 'Zone C',
@@ -234,7 +235,8 @@
       const updateNested = (c, f, v) => setData(prev => ({ ...prev, [c]: { ...(prev[c] || {}), [f]: v } }));
       const updateSetting = (f, v) => {
         setData(prev => ({ ...prev, settings: { ...(prev.settings || {}), [f]: v } }));
-        if (f === 'zone') setData(prev => ({ ...prev, vacations: [], lastAnnualUpdate: null }));
+        if (f === 'zone') setData(prev => ({ ...prev, vacations: [],
+          optimizationResults: null, lastAnnualUpdate: null }));
       };
 
       const totals = useMemo(() => {
@@ -426,23 +428,37 @@
       };
 
       const resetCalendar = () => updateField('calendarLeaves', {});
+      const [currentDate, setCurrentDate] = useState(new Date());
 
       const handleApplySuggestion = useCallback((dates) => {
+        let firstValidDate = null;
+
         setData(prev => {
           const newLeaves = { ...(prev.calendarLeaves || {}) };
+
           dates.forEach(dateStr => {
             const d = new Date(dateStr);
             if (!isNaN(d)) {
+              if (!firstValidDate) {
+                firstValidDate = new Date(d);
+              }
+
               const pad = n => String(n).padStart(2, '0');
               const id = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-              // On pose les jours suggérés par défaut en CP
+
               newLeaves[id] = { type: 'cp', duration: 1 };
             }
           });
+
           return { ...prev, calendarLeaves: newLeaves };
-        });
-        // On redirige l'utilisateur vers le tableau pour voir le résultat
+        });        
+        // Redirection vers l’onglet calendrier
         setActiveTab('calendar');
+
+        if (firstValidDate) {
+          setCurrentDate(firstValidDate);
+        }
+
       }, []);
 
       const adj = data.adjustments || { cp: 0, rtt: 0, seniority: 0, cet: 0 };
@@ -604,7 +620,7 @@
             
             {activeTab === 'optimisation' && (
               <div key="view-optimisation" className="view-transition-enter">
-                <OptimizationPage data={data} calcs={calcs} onApplySuggestion={handleApplySuggestion} />
+                <OptimizationPage data={data} calcs={calcs} onApplySuggestion={handleApplySuggestion} results={data.optimizationResults} setResults={(r)=>setData(prev=>({...prev, optimizationResults:r}))} />
               </div>
             )}
 
@@ -739,16 +755,16 @@
       );
     };
 
-    const OptimizationPage = ({ data, calcs, onApplySuggestion }) => {
+    const OptimizationPage = ({ data, calcs, onApplySuggestion, results, setResults }) => {
       const [year, setYear] = useState(new Date().getFullYear());
       const [loading, setLoading] = useState(false);
-      const [results, setResults] = useState(null);
+      // results state lifted to parent
       const [error, setError] = useState(null);
 
       const generateOptimization = async () => {
         setLoading(true);
         setError(null);
-        setResults(null);
+        // keep previous results until new ones arrive
 
         const apiKey = ""; // Fournie par l'environnement
         const holidays = getHolidays(year);
@@ -806,13 +822,32 @@
         };
 
         try {
-          const result = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+          const result = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
           const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) {
+            //const suggestions = JSON.parse(text).suggestions;
+
+            // récupérer tout le state depuis le localStorage
+            //const storedData = JSON.parse(localStorage.getItem('conges-toulouse-data-v3') || '{}');
+            //const storedVacations = storedData.vacations || [];
+            
+            //const normalize = (d) => {
+            //  if (!d) return null;
+            //  const date = new Date(d);
+            //  return isNaN(date) ? null : date.toISOString().split('T')[0];
+            //};
+
+            //const filteredResults = suggestions.filter(suggestion => {
+            //  return !storedVacations.some(vac => 
+            //    normalize(vac.startDate) === normalize(suggestion.startDate) &&
+            //    normalize(vac.endDate) === normalize(suggestion.endDate)
+            //  );
+            //});
+
             setResults(JSON.parse(text).suggestions);
           } else {
             throw new Error("Réponse vide de l'IA");
@@ -959,7 +994,7 @@
           </section>
 
           <section>
-            <h2 className="text-sm font-black text-slate-800 font-black uppercase tracking-widest mb-4 px-2">Acquisition Mensuelle</h2>
+            <h2 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-4 px-2">Acquisition Mensuelle</h2>
             <div className="bg-white dark:bg-slate-800 rounded-[38px] p-6 shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-xs font-black text-slate-700 dark:text-slate-200">CP</span>
@@ -991,7 +1026,7 @@
                   {isVisible ? "CACHER" : "VOIR"}
                 </button>
               </div>
-              <p className="text-[9px] text-slate-400 mt-3 italic">Votre clé est stockée localement dans votre navigateur et n'est jamais transmise à GitHub.</p>
+              <p className="text-[9px] leading-relaxed text-slate-500 dark:text-slate-400 font-medium italic">Votre clé est stockée localement dans votre navigateur et n'est jamais transmise à GitHub.</p>
             </div>
           </section>
         </div>
@@ -1231,18 +1266,6 @@
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
-
-    // Inscription du Service Worker pour permettre l'installation PWA
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        const swCode = `
-          self.addEventListener('install', (e) => self.skipWaiting());
-          self.addEventListener('fetch', (e) => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
-        `;
-        const blob = new Blob([swCode], { type: 'text/javascript' });
-        navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(err => console.log("SW non enregistré", err));
-      });
-    }
 
     window.addEventListener('load', () => {
       const manifest = { 
