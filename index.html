@@ -765,7 +765,7 @@
         setError(null);
         // keep previous results until new ones arrive
 
-        const apiKey = ""; // Fournie par l'environnement
+        const apiKey = data.settings?.apiKey || "";
         const holidays = getHolidays(year);
         // On récupère les vacances qui tombent dans l'année choisie
         const vacations = data.vacations?.filter(v => v.start.startsWith(String(year)) || v.end.startsWith(String(year))) || [];
