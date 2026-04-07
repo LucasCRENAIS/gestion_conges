@@ -754,32 +754,36 @@
       );
     };
 
+    // Composant de la page d'optimisation
     const OptimizationPage = ({ data, calcs, onApplySuggestion, results, setResults }) => {
       const [year, setYear] = useState(new Date().getFullYear());
       const [loading, setLoading] = useState(false);
-      // results state lifted to parent
       const [error, setError] = useState(null);
 
       const generateOptimization = async () => {
         setLoading(true);
         setError(null);
-        // keep previous results until new ones arrive
 
         const apiKey = data.settings?.apiKey || "";
+        
+        // Si aucune clé n'est renseignée et qu'on n'est pas dans le Canvas (qui injecte sa clé en arrière-plan)
+        if (!apiKey && window.location.hostname !== 'localhost' && !window.location.hostname.includes('usercontent')) {
+          setError("Veuillez configurer votre clé API dans les réglages.");
+          setLoading(false);
+          return;
+        }
+
         const holidays = getHolidays(year);
-        // On récupère les vacances qui tombent dans l'année choisie
-        const vacations = data.vacations?.filter(v => v.start.startsWith(String(year)) || v.end.startsWith(String(year))) || [];
+        const vacations = data.vacations?.filter(v => v.start?.startsWith(String(year))) || [];
         const zone = data.settings?.zone || 'Zone C';
 
         const promptText = `Tu es un expert en optimisation de congés en France. L'utilisateur veut optimiser la pose de ses jours de congés pour l'année ${year}. 
         Il dispose actuellement d'un prévisionnel de ${calcs.cp.bal.toFixed(1)} jours de CP et ${calcs.rtt.bal.toFixed(1)} jours de RTT.
         Les jours fériés de cette année sont : ${holidays.join(', ')}.
-        Les vacances scolaires de sa zone (${zone}) sont (format AAAA-MM-JJ) : ${JSON.stringify(vacations)}.
+        Les vacances scolaires enregistrées : ${JSON.stringify(vacations)}.
         
-        Trouve les 3 à 5 meilleures périodes (comme des ponts ou viaducs) pour poser des congés au cours de l'année ${year} afin de maximiser le nombre de jours consécutifs de repos tout en posant le strict minimum de jours de congés.
-        Privilégie les situations très avantageuses (ex: poser le vendredi après le jeudi de l'Ascension, poser 4 jours entre deux jours fériés rapprochés en mai, etc.). 
-        Concentre toi uniquement sur l'année ${year}.
-        IMPORTANT : le format des dates dans le tableau 'datesToTake' DOIT impérativement être 'AAAA-MM-JJ'.`;
+        Trouve les 3 à 5 meilleures périodes pour poser des congés en ${year} afin de maximiser le repos avec le minimum de jours.
+        IMPORTANT : Retourne un JSON uniquement selon le schéma demandé. Les dates dans 'datesToTake' doivent être 'AAAA-MM-JJ'.`;
 
         const payload = {
           contents: [{ parts: [{ text: promptText }] }],
@@ -798,7 +802,8 @@
                       consecutiveDaysOff: { type: "INTEGER" },
                       leaveDaysUsed: { type: "INTEGER" },
                       description: { type: "STRING" }
-                    }
+                    },
+                    required: ["title", "datesToTake", "consecutiveDaysOff", "leaveDaysUsed", "description"]
                   }
                 }
               }
@@ -811,49 +816,37 @@
           for (let i = 0; i < retries; i++) {
             try {
               const res = await fetch(url, options);
-              if (!res.ok) throw new Error('API Error');
+              if (!res.ok) {
+                 // On lit le corps de la réponse d'erreur pour savoir exactement ce qui cloche
+                 const errData = await res.json().catch(() => ({}));
+                 throw new Error(errData.error?.message || `Erreur HTTP ${res.status}`);
+              }
               return await res.json();
             } catch (err) {
               if (i === retries - 1) throw err;
-              await new Promise(resolve => setTimeout(resolve, delays[i]));
+              await new Promise(r => setTimeout(r, delays[i]));
             }
           }
         };
 
         try {
-          const result = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+          const modelName = "gemini-2.5-flash-lite";
+          const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+          const result = await fetchWithRetry(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
+
           const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) {
-            //const suggestions = JSON.parse(text).suggestions;
-
-            // récupérer tout le state depuis le localStorage
-            //const storedData = JSON.parse(localStorage.getItem('conges-toulouse-data-v3') || '{}');
-            //const storedVacations = storedData.vacations || [];
-            
-            //const normalize = (d) => {
-            //  if (!d) return null;
-            //  const date = new Date(d);
-            //  return isNaN(date) ? null : date.toISOString().split('T')[0];
-            //};
-
-            //const filteredResults = suggestions.filter(suggestion => {
-            //  return !storedVacations.some(vac => 
-            //    normalize(vac.startDate) === normalize(suggestion.startDate) &&
-            //    normalize(vac.endDate) === normalize(suggestion.endDate)
-            //  );
-            //});
-
-            setResults(JSON.parse(text).suggestions);
+            setResults(JSON.parse(text).suggestions || []);
           } else {
-            throw new Error("Réponse vide de l'IA");
+            throw new Error("La réponse de l'IA était vide.");
           }
         } catch (err) {
-          console.error(err);
-          setError("Impossible de générer l'optimisation. L'IA est peut-être indisponible pour le moment.");
+          setError(`Erreur : ${err.message}`);
         } finally {
           setLoading(false);
         }
