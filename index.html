@@ -21,6 +21,14 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+  <script>
+    Babel.registerPreset('react-classic', {
+      presets: [
+        [Babel.availablePresets['react'], { runtime: 'classic' }]
+      ]
+    });
+  </script>
+
   <style>
     :root { --sat: env(safe-area-inset-top); --sab: env(safe-area-inset-bottom); }
     
@@ -89,7 +97,6 @@
   <div id="root"></div>
 
   <script type="text/babel" data-type="module">
-    /** @jsxRuntime classic */
     const createPortal = ReactDOM.createPortal;
     const { useState, useMemo, useEffect, useCallback, useRef } = React;
 
